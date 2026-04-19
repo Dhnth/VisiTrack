@@ -1,5 +1,7 @@
 'use client'
 
+import { motion, useInView } from 'framer-motion'
+import { useRef } from 'react'
 import { Check } from 'lucide-react'
 
 const pricingData = {
@@ -70,24 +72,58 @@ const pricingData = {
   },
 }
 
+// Variants untuk animasi container
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.2,
+    },
+  },
+} as const;
+
+// Variants untuk setiap kartu
+const cardVariants = {
+  hidden: { opacity: 0, y: 50 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
+} as const;
+
 export default function PricingSection() {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, amount: 0.2 });
+
   return (
-    <section className="py-20 px-5 bg-linear-to-b from-white to-gray-50">
+    <section className="py-20 px-5 bg-linear-to-b from-white to-gray-50" ref={ref}>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-12">
+        <motion.div 
+          className="text-center mb-12"
+          initial={{ opacity: 0, y: -20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.6 }}
+        >
           <h2 className="text-4xl font-bold text-[#800016] mb-4">
             Simple, Transparent Pricing
           </h2>
           <p className="text-gray-600 text-lg">
             Choose the plan that fits your needs
           </p>
-        </div>
+        </motion.div>
 
         {/* Pricing Cards */}
-        <div className="grid md:grid-cols-3 gap-8">
+        <motion.div 
+          className="grid md:grid-cols-3 gap-8"
+          variants={containerVariants}
+          initial="hidden"
+          animate={isInView ? "visible" : "hidden"}
+        >
           {/* Starter */}
-          <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100 hover:shadow-xl transition-shadow duration-300">
+          <motion.div 
+            variants={cardVariants}
+            whileHover={{ y: -10, transition: { duration: 0.2 } }}
+            className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100 hover:shadow-xl transition-shadow duration-300"
+          >
             <div className="p-6 border-b border-gray-100">
               <h3 className="text-2xl font-bold text-gray-800 mb-2">
                 {pricingData.starter.name}
@@ -101,9 +137,13 @@ export default function PricingSection() {
                 </span>
                 <span className="text-gray-500">{pricingData.starter.period}</span>
               </div>
-              <button className="w-full bg-[#800016] text-white py-2 rounded-lg hover:bg-[#A0001C] transition cursor-pointer">
+              <motion.button 
+                className="w-full bg-[#800016] text-white py-2 rounded-lg hover:bg-[#A0001C] transition cursor-pointer"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
                 {pricingData.starter.buttonText}
-              </button>
+              </motion.button>
             </div>
             <div className="p-6 space-y-3">
               {pricingData.starter.features.map((feature, idx) => (
@@ -113,10 +153,14 @@ export default function PricingSection() {
                 </div>
               ))}
             </div>
-          </div>
+          </motion.div>
 
           {/* Business (Highlighted) */}
-          <div className="relative bg-white rounded-2xl shadow-2xl overflow-hidden border-2 border-[#C00021] hover:shadow-2xl transition-shadow duration-300 transform md:-translate-y-4">
+          <motion.div 
+            variants={cardVariants}
+            whileHover={{ y: -10, transition: { duration: 0.2 } }}
+            className="relative bg-white rounded-2xl shadow-2xl overflow-hidden border-2 border-[#C00021] hover:shadow-2xl transition-shadow duration-300 transform md:-translate-y-4"
+          >
             <div className="absolute top-0 right-0 bg-[#C00021] text-white px-4 py-1 rounded-bl-lg text-sm font-semibold">
               POPULAR
             </div>
@@ -133,9 +177,13 @@ export default function PricingSection() {
                 </span>
                 <span className="text-gray-500">{pricingData.business.period}</span>
               </div>
-              <button className="w-full bg-[#C00021] text-white py-2 rounded-lg hover:bg-[#FF002B] transition cursor-pointer">
+              <motion.button 
+                className="w-full bg-[#C00021] text-white py-2 rounded-lg hover:bg-[#FF002B] transition cursor-pointer"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
                 {pricingData.business.buttonText}
-              </button>
+              </motion.button>
             </div>
             <div className="p-6 space-y-3">
               {pricingData.business.features.map((feature, idx) => (
@@ -145,10 +193,14 @@ export default function PricingSection() {
                 </div>
               ))}
             </div>
-          </div>
+          </motion.div>
 
           {/* Enterprise */}
-          <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100 hover:shadow-xl transition-shadow duration-300">
+          <motion.div 
+            variants={cardVariants}
+            whileHover={{ y: -10, transition: { duration: 0.2 } }}
+            className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100 hover:shadow-xl transition-shadow duration-300"
+          >
             <div className="p-6 border-b border-gray-100">
               <h3 className="text-2xl font-bold text-gray-800 mb-2">
                 {pricingData.enterprise.name}
@@ -162,9 +214,13 @@ export default function PricingSection() {
                 </span>
                 <span className="text-gray-500">{pricingData.enterprise.period}</span>
               </div>
-              <button className="w-full bg-gray-200 text-gray-800 py-2 rounded-lg hover:bg-gray-300 transition cursor-pointer">
+              <motion.button 
+                className="w-full bg-gray-200 text-gray-800 py-2 rounded-lg hover:bg-gray-300 transition cursor-pointer"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
                 {pricingData.enterprise.buttonText}
-              </button>
+              </motion.button>
             </div>
             <div className="p-6 space-y-3">
               {pricingData.enterprise.features.map((feature, idx) => (
@@ -174,13 +230,18 @@ export default function PricingSection() {
                 </div>
               ))}
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
 
         {/* Footnote */}
-        <p className="text-center text-gray-400 text-sm mt-8">
+        <motion.p 
+          initial={{ opacity: 0 }}
+          animate={isInView ? { opacity: 1 } : {}}
+          transition={{ delay: 0.8 }}
+          className="text-center text-gray-400 text-sm mt-8"
+        >
           Additional 100 guests only Rp5,000 
-        </p>
+        </motion.p>
       </div>
     </section>
   )

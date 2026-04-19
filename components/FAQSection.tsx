@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useRef } from 'react'
+import { motion, AnimatePresence, useInView } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
 
 const faqData = [
@@ -31,20 +31,45 @@ const faqData = [
   }
 ]
 
+// Variants untuk animasi container (stagger)
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+} as const;
+
+// Variants untuk setiap item FAQ
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
+} as const;
+
 export default function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(null)
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
+  const ref = useRef(null)
+  const isInView = useInView(ref, { once: true, amount: 0.2 })
 
   const toggle = (index: number) => {
     setOpenIndex(openIndex === index ? null : index)
   }
 
   return (
-    <div className="w-full px-5 max-w-3xl mx-auto">
-      <div className="space-y-4 w-full">
+    <div className="w-full px-5 max-w-3xl mx-auto" ref={ref}>
+      <motion.div 
+        className="space-y-4 w-full"
+        variants={containerVariants}
+        initial="hidden"
+        animate={isInView ? "visible" : "hidden"}
+      >
         {faqData.map((item, index) => (
-          <div
+          <motion.div
             key={index}
+            variants={itemVariants}
             className="w-full border border-gray-200 rounded-xl overflow-hidden transition-shadow duration-200"
             style={{
               boxShadow: hoveredIndex === index ? '0 0 0 2px #002962' : 'none',
@@ -84,9 +109,9 @@ export default function FAQSection() {
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
     </div>
   )
 }

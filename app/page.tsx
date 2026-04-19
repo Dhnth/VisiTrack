@@ -68,8 +68,8 @@ export default function HomePage() {
         >
           <li><a href="#features">Features</a></li>
           <li><a href="#solutions">Solutions</a></li>
-          <li><a href="#faq">FaQ</a></li>
           <li><a href="#pricing">Pricing</a></li>
+          <li><a href="#faq">FaQ</a></li>
         </motion.ul>
 
         <motion.div
