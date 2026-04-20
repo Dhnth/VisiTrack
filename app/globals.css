@@ -151,3 +151,6 @@ body::-webkit-scrollbar {
     @apply font-sans;
   }
 }
+* {
+  scroll-behavior: smooth;
+}

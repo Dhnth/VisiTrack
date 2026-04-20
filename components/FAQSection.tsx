@@ -31,7 +31,6 @@ const faqData = [
   }
 ]
 
-// Variants untuk animasi container (stagger)
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
@@ -42,10 +41,9 @@ const containerVariants = {
   }
 } as const;
 
-// Variants untuk setiap item FAQ
 const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
+  hidden: { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } }
 } as const;
 
 export default function FAQSection() {
@@ -59,58 +57,74 @@ export default function FAQSection() {
   }
 
   return (
-    <div className="w-full px-5 max-w-3xl mx-auto" ref={ref}>
+    <div className="w-full" ref={ref}>
       <motion.div 
-        className="space-y-4 w-full"
+        className="space-y-3 sm:space-y-4 w-full"
         variants={containerVariants}
         initial="hidden"
         animate={isInView ? "visible" : "hidden"}
       >
-        {faqData.map((item, index) => (
-          <motion.div
-            key={index}
-            variants={itemVariants}
-            className="w-full border border-gray-200 rounded-xl overflow-hidden transition-shadow duration-200"
-            style={{
-              boxShadow: hoveredIndex === index ? '0 0 0 2px #002962' : 'none',
-            }}
-            onMouseEnter={() => setHoveredIndex(index)}
-            onMouseLeave={() => setHoveredIndex(null)}
-          >
-            <button
-              onClick={() => toggle(index)}
-              className="w-full flex items-center justify-between p-5 text-left font-semibold text-lg hover:bg-gray-50 transition cursor-pointer"
+        {faqData.map((item, index) => {
+          const isOpen = openIndex === index
+          
+          return (
+            <motion.div
+              key={index}
+              variants={itemVariants}
+              className="w-full border border-gray-200 rounded-xl overflow-hidden transition-shadow duration-200"
+              style={{
+                boxShadow: hoveredIndex === index ? '0 0 0 2px #002962' : 'none',
+              }}
+              onMouseEnter={() => setHoveredIndex(index)}
+              onMouseLeave={() => setHoveredIndex(null)}
             >
-              <span>{item.question}</span>
-              <motion.div
-                animate={{ rotate: openIndex === index ? 180 : 0 }}
-                transition={{ duration: 0.2 }}
-                className="transition-opacity duration-200"
-                style={{
-                  opacity: hoveredIndex === index ? 1 : 0,
-                }}
+              <button
+                onClick={() => toggle(index)}
+                className="w-full flex items-center justify-between p-4 sm:p-5 text-left hover:bg-gray-50 transition cursor-pointer"
               >
-                <ChevronDown className="size-5 text-[#002962]" />
-              </motion.div>
-            </button>
-
-            <AnimatePresence mode="wait">
-              {openIndex === index && (
+                <span className="pr-4 text-sm sm:text-base lg:text-lg font-semibold text-gray-800">
+                  {item.question}
+                </span>
                 <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.3, ease: 'easeInOut' }}
-                  className="overflow-hidden"
+                  animate={{ rotate: isOpen ? 180 : 0 }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                  className="flex-shrink-0"
                 >
-                  <div className="p-5 pt-0 text-gray-600 ">
-                    {item.answer}
-                  </div>
+                  <ChevronDown className="size-4 sm:size-5 text-[#002962]" />
                 </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
-        ))}
+              </button>
+
+              <AnimatePresence mode="wait">
+                {isOpen && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ 
+                      height: "auto", 
+                      opacity: 1,
+                      transition: {
+                        height: { duration: 0.4, ease: [0.4, 0, 0.2, 1] },
+                        opacity: { duration: 0.3, delay: 0.1 }
+                      }
+                    }}
+                    exit={{ 
+                      height: 0, 
+                      opacity: 0,
+                      transition: {
+                        height: { duration: 0.3, ease: [0.4, 0, 0.2, 1] },
+                        opacity: { duration: 0.2 }
+                      }
+                    }}
+                    className="overflow-hidden"
+                  >
+                    <div className="p-4 sm:p-5 pt-0 text-gray-600 text-sm sm:text-base">
+                      {item.answer}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          )
+        })}
       </motion.div>
     </div>
   )

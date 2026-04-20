@@ -3,53 +3,25 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ScanQrCode, Mail, Lock, Eye, EyeOff, ArrowRight, Check } from "lucide-react";
 
 export default function SignInPage() {
-  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setLoading(true);
-
-    const res = await fetch("/api/auth/signin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      setError(data.error);
-      setLoading(false);
-      return;
-    }
-
-    localStorage.setItem("user", JSON.stringify(data.user));
-    if (rememberMe) {
-      localStorage.setItem("rememberMe", "true");
-    }
-
-    if (data.user.role === "super_admin") {
-      router.push("/superadmin");
-    } else {
-      router.push(`/${data.user.slug}/${data.user.role}`);
-    }
+    // Handle sign in logic here
+    console.log({ email, password, rememberMe });
   };
 
   return (
     <>
       <main>
+        {/* Hero Section */}
         <section className="min-h-[95vh] mt-5 rounded-2xl mx-5 flex flex-col items-center relative overflow-hidden border border-black/30 shadow-inner shadow-black/40">
           <div
             className="absolute inset-0 pointer-events-none h-full rounded-xl z-0 w-full"
@@ -88,8 +60,8 @@ export default function SignInPage() {
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            animate={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
             className="text-center mt-4 z-10"
           >
@@ -99,13 +71,7 @@ export default function SignInPage() {
             </p>
           </motion.div>
 
-          <motion.form
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
-            onSubmit={handleSubmit}
-            className="mt-8 z-10 w-full max-w-md px-4"
-          >
+          <form onSubmit={handleSubmit} className="mt-8 z-10 w-full max-w-md px-4">
             {/* Email Field */}
             <div className="flex flex-col gap-1.5 mb-4">
               <label htmlFor="email" className="text-sm font-medium text-gray-700">
@@ -151,13 +117,6 @@ export default function SignInPage() {
               </div>
             </div>
 
-            {/* Error Message */}
-            {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-red-600 text-sm text-center">{error}</p>
-              </div>
-            )}
-
             {/* Remember Me & Forgot Password */}
             <div className="flex items-center justify-between mb-6">
               <label className="flex items-center gap-2 cursor-pointer">
@@ -182,16 +141,15 @@ export default function SignInPage() {
             {/* Sign In Button */}
             <motion.button
               type="submit"
-              disabled={loading}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="w-full h-11 bg-[#407BA7] text-white rounded-lg font-medium hover:bg-[#356a8f] transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full h-11 bg-[#407BA7] text-white rounded-lg font-medium hover:bg-[#356a8f] transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer"
             >
-              {loading ? "Processing..." : "Sign In"}
-              {!loading && <ArrowRight size={16} />}
+              Sign In
+              <ArrowRight size={16} />
             </motion.button>
 
-          </motion.form>
+          </form>
 
           <motion.div
             initial={{ opacity: 0, x: 100, rotate: 0 }}
