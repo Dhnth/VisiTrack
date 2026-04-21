@@ -4,8 +4,18 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { motion } from "framer-motion";
-import { ScanQrCode, Mail, Lock, Eye, EyeOff, ArrowRight, Check } from "lucide-react";
+import {
+  ScanQrCode,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  Check,
+  ArrowLeft,
+} from "lucide-react";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -21,29 +31,35 @@ export default function SignInPage() {
     setError("");
     setLoading(true);
 
-    const res = await fetch("/api/auth/signin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+    const result = await signIn("credentials", {
+      email,
+      password,
+      redirect: false,
     });
 
-    const data = await res.json();
-
-    if (!res.ok) {
-      setError(data.error);
+    if (result?.error) {
+      setError("Email atau password salah");
       setLoading(false);
       return;
     }
 
-    localStorage.setItem("user", JSON.stringify(data.user));
+    // Ambil session untuk dapat data user
+    const res = await fetch("/api/auth/session");
+    const session = await res.json();
+
     if (rememberMe) {
       localStorage.setItem("rememberMe", "true");
     }
 
-    if (data.user.role === "super_admin") {
+    const userRole = session?.user?.role;
+    const userSlug = session?.user?.slug;
+
+    if (userRole === "super_admin") {
       router.push("/superadmin");
+    } else if (userSlug && userRole) {
+      router.push(`/${userSlug}/${userRole}`);
     } else {
-      router.push(`/${data.user.slug}/${data.user.role}`);
+      router.push("/");
     }
   };
 
@@ -57,11 +73,13 @@ export default function SignInPage() {
               backgroundImage: "url(/images/bg-home.svg)",
               backgroundRepeat: "repeat",
               backgroundSize: "221px",
-              maskImage: "linear-gradient(to bottom, black 0%, transparent 70%)",
+              maskImage:
+                "linear-gradient(to bottom, black 0%, transparent 70%)",
               WebkitMaskImage:
                 "linear-gradient(to bottom, black 0%, transparent 100%)",
             }}
           />
+          
 
           <motion.div
             initial={{ opacity: 0, rotate: 0, x: -100, y: -50 }}
@@ -106,9 +124,13 @@ export default function SignInPage() {
             onSubmit={handleSubmit}
             className="mt-8 z-10 w-full max-w-md px-4"
           >
+            
             {/* Email Field */}
             <div className="flex flex-col gap-1.5 mb-4">
-              <label htmlFor="email" className="text-sm font-medium text-gray-700">
+              <label
+                htmlFor="email"
+                className="text-sm font-medium text-gray-700"
+              >
                 Email
               </label>
               <div className="relative">
@@ -127,7 +149,10 @@ export default function SignInPage() {
 
             {/* Password Field */}
             <div className="flex flex-col gap-1.5 mb-4">
-              <label htmlFor="password" className="text-sm font-medium text-gray-700">
+              <label
+                htmlFor="password"
+                className="text-sm font-medium text-gray-700"
+              >
                 Password
               </label>
               <div className="relative">
@@ -164,7 +189,9 @@ export default function SignInPage() {
                 <div
                   onClick={() => setRememberMe(!rememberMe)}
                   className={`w-4 h-4 rounded border flex items-center justify-center transition-all duration-200 cursor-pointer ${
-                    rememberMe ? "bg-[#407BA7] border-[#407BA7]" : "border-gray-300 bg-white"
+                    rememberMe
+                      ? "bg-[#407BA7] border-[#407BA7]"
+                      : "border-gray-300 bg-white"
                   }`}
                 >
                   {rememberMe && <Check className="size-3 text-white" />}
@@ -190,6 +217,16 @@ export default function SignInPage() {
               {loading ? "Processing..." : "Sign In"}
               {!loading && <ArrowRight size={16} />}
             </motion.button>
+                        <Link
+              href="/"
+              className="inline-flex items-center gap-2 mt-4 text-sm text-gray-500 hover:text-[#407BA7] transition-colors duration-200 group"
+            >
+              <ArrowLeft
+                size={16}
+                className="group-hover:-translate-x-0.5 transition-transform duration-200"
+              />
+              <span>Back to homepage</span>
+            </Link>
 
           </motion.form>
 

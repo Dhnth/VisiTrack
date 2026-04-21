@@ -1,0 +1,327 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  LayoutDashboard,
+  Building2,
+  Users,
+  Activity,
+  Settings,
+  Bell,
+  LogOut,
+  Menu,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  Database,
+} from "lucide-react";
+import Image from "next/image";
+import { signOut } from "next-auth/react";
+
+const menuItems = [
+  { name: "Dashboard", href: "/superadmin", icon: LayoutDashboard },
+  { name: "Instansi", href: "/superadmin/instances", icon: Building2 },
+  { name: "Admin Instansi", href: "/superadmin/admins", icon: Users },
+  { name: "Activity Logs", href: "/superadmin/activity-logs", icon: Activity },
+  { name: "Reports", href: "/superadmin/reports", icon: FileText },
+  { name: "Backup & System", href: "/superadmin/system", icon: Database },
+  { name: "Settings", href: "/superadmin/settings", icon: Settings },
+];
+
+export default function SuperAdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
+
+  // Deteksi ukuran layar
+  useEffect(() => {
+    const checkScreen = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (mobile) {
+        setSidebarOpen(false);
+        setMobileMenuOpen(false);
+      } else {
+        setSidebarOpen(true);
+      }
+    };
+    checkScreen();
+    window.addEventListener("resize", checkScreen);
+    return () => window.removeEventListener("resize", checkScreen);
+  }, []);
+
+  // Tutup mobile menu saat pathname berubah (tanpa useEffect)
+  const handleLinkClick = () => {
+    if (isMobile) {
+      setMobileMenuOpen(false);
+    }
+  };
+
+  const toggleSidebar = () => {
+    if (!isMobile) {
+      setSidebarOpen(!sidebarOpen);
+    }
+  };
+
+  const openMobileMenu = () => {
+    setMobileMenuOpen(true);
+  };
+
+  const closeMobileMenu = () => {
+    setMobileMenuOpen(false);
+  };
+
+  return (
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
+      {/* Overlay untuk mobile */}
+      <AnimatePresence>
+        {isMobile && mobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={closeMobileMenu}
+            className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Sidebar untuk Desktop (dengan toggle) */}
+      {!isMobile && (
+        <motion.aside
+          initial={{ width: 280 }}
+          animate={{ width: sidebarOpen ? 280 : 80 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
+          className="relative bg-white border-r border-gray-200 h-screen flex flex-col shadow-lg"
+        >
+          {/* Logo */}
+          <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200">
+            {sidebarOpen ? (
+              <Link href="/superadmin" className="flex items-center gap-2">
+                <Image
+                  src="/images/icon.svg"
+                  alt="VisiTrack Logo"
+                  width={36}
+                  height={36}
+                  className="size-9"
+                  priority
+                />
+                <span className="text-xl font-bold text-[#800016]">
+                  VisiTrack
+                </span>
+              </Link>
+            ) : (
+              <div className="w-full flex items-center justify-center">
+                <Image
+                  src="/images/icon.svg"
+                  alt="VisiTrack Logo"
+                  width={36}
+                  height={36}
+                  className="size-9"
+                  priority
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Menu */}
+          <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 mb-2 group ${
+                    isActive
+                      ? "bg-[#800016] text-white shadow-sm"
+                      : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  <div
+                    className={`size-9 rounded-lg grid place-items-center transition-colors ${
+                      isActive
+                        ? "bg-white/20 text-white"
+                        : "bg-gray-100 text-[#800016] group-hover:bg-[#800016]/10"
+                    }`}
+                  >
+                    <Icon size={20} />
+                  </div>
+                  {sidebarOpen && (
+                    <span className="text-sm font-medium">{item.name}</span>
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Logout */}
+          <div className="p-4 border-t border-gray-200">
+            <button onClick={() => signOut({ callbackUrl: '/signin' })} className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-gray-600 hover:bg-gray-100 transition group">
+              <div className="size-9 rounded-lg grid place-items-center bg-gray-100 text-[#800016] group-hover:bg-[#800016]/10 transition-colors">
+                <LogOut size={20} />
+              </div>
+              {sidebarOpen && (
+                <span className="text-sm font-medium">Logout</span>
+              )}
+            </button>
+          </div>
+
+          {/* Tombol Toggle Sidebar (Chevron) */}
+          <button
+            onClick={toggleSidebar}
+            className="absolute -right-3 top-20 bg-white border border-gray-200 rounded-full p-1.5 shadow-md hover:bg-gray-50 transition"
+          >
+            {sidebarOpen ? (
+              <ChevronLeft size={16} className="text-gray-600" />
+            ) : (
+              <ChevronRight size={16} className="text-gray-600" />
+            )}
+          </button>
+        </motion.aside>
+      )}
+
+      {/* Sidebar untuk Mobile (slide from left) */}
+      <AnimatePresence>
+        {isMobile && mobileMenuOpen && (
+          <motion.aside
+            initial={{ x: -280 }}
+            animate={{ x: 0 }}
+            exit={{ x: -280 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="fixed left-0 top-0 z-50 w-72 bg-white border-r border-gray-200 h-screen flex flex-col shadow-xl"
+          >
+            {/* Logo */}
+            <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200">
+              <Link
+                href="/superadmin"
+                className="flex items-center gap-2"
+                onClick={handleLinkClick}
+              >
+                <Image
+                  src="/images/icon.svg"
+                  alt="VisiTrack Logo"
+                  width={36}
+                  height={36}
+                  className="size-9"
+                  priority
+                />
+                <span className="text-xl font-bold text-[#800016]">
+                  VisiTrack
+                </span>
+              </Link>
+              <button
+                onClick={closeMobileMenu}
+                className="p-1 rounded-lg hover:bg-gray-100 transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Menu */}
+            <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
+              {menuItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    onClick={handleLinkClick}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 mb-2 group ${
+                      isActive
+                        ? "bg-[#800016] text-white shadow-sm"
+                        : "text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    <div
+                      className={`size-9 rounded-lg grid place-items-center transition-colors ${
+                        isActive
+                          ? "bg-white/20 text-white"
+                          : "bg-gray-100 text-[#800016] group-hover:bg-[#800016]/10"
+                      }`}
+                    >
+                      <Icon size={20} />
+                    </div>
+                    <span className="text-sm font-medium">{item.name}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+
+            {/* Logout */}
+            <div className="p-4 border-t border-gray-200">
+              <button
+                onClick={handleLinkClick}
+                className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-gray-600 hover:bg-gray-100 transition group"
+              >
+                <div className="size-9 rounded-lg grid place-items-center bg-gray-100 text-[#800016] group-hover:bg-[#800016]/10 transition-colors">
+                  <LogOut size={20} />
+                </div>
+                <span className="text-sm font-medium">Logout</span>
+              </button>
+            </div>
+          </motion.aside>
+        )}
+      </AnimatePresence>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden w-full">
+        {/* Top Navbar */}
+        <header className="bg-white shadow-sm px-4 sm:px-6 py-3 flex items-center justify-between border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            {/* Tombol Menu untuk mobile */}
+            {isMobile && (
+              <button
+                onClick={openMobileMenu}
+                className="p-2 rounded-lg hover:bg-gray-100 transition"
+              >
+                <Menu size={20} className="text-gray-600" />
+              </button>
+            )}
+            <div className="hidden sm:block">
+              <h1 className="text-lg sm:text-xl font-semibold text-gray-800">
+                Platform Super Admin
+              </h1>
+            </div>
+            <span className="px-2 py-0.5 text-xs font-medium bg-[#800016]/10 text-[#800016] rounded-full whitespace-nowrap">
+              Super Admin
+            </span>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-4">
+            <button className="relative p-2 rounded-lg hover:bg-gray-100 transition">
+              <Bell size={20} className="text-gray-500" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#FF002B] rounded-full"></span>
+            </button>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="text-right hidden sm:block">
+                <p className="text-sm font-medium text-gray-700">Super Admin</p>
+                <p className="text-xs text-gray-400">
+                  superadmin@visitrack.com
+                </p>
+              </div>
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-linear-to-br from-[#800016] to-[#C00021] text-white flex items-center justify-center font-medium text-sm">
+                SA
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Page Content */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+}
