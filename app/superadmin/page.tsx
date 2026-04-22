@@ -1,586 +1,686 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import {
-  ArrowUp,
-  ArrowDown,
-  Eye,
-  AlertCircle,
-  Download,
-  RefreshCw,
-  Database,
-  Settings,
-  CheckCircle,
-  XCircle,
-  TrendingUp,
-  Users,
   Building2,
+  Users,
   UserCheck,
+  Calendar,
+  TrendingUp,
+  Activity,
   Clock,
-  Crown,
-  Briefcase,
-  GraduationCap,
+  Eye,
+  Award,
+  RefreshCw,
+  ChevronRight,
+  DollarSign,
+  TrendingDown,
+  Zap,
+  AlertCircle,
+  Rocket,
 } from "lucide-react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  Cell,
+} from "recharts";
 
 interface DashboardStats {
   total_instances: number;
-  total_users: number;
-  total_admins: number;
-  total_petugas: number;
-  total_ppid: number;
   active_instances: number;
   expired_instances: number;
   trial_instances: number;
-  total_revenue: number;
+  total_admins: number;
+  total_petugas: number;
+  total_ppid: number;
+  total_employees: number;
+  total_guests_all_time: number;
+  total_guests_today: number;
+  total_guests_this_month: number;
+  total_guests_last_month: number;
+  active_visits: number;
+  pending_approvals: number;
+  revenue_mrr: number;
+  revenue_last_month: number;
+  guest_growth: number;
+  revenue_growth: number;
 }
 
-interface ExpiringInstance {
+interface ChartData {
+  period: string;
+  total: number;
+}
+
+interface TopInstance {
   id: number;
   name: string;
   slug: string;
-  plan: string;
-  subscription_end: Date;
-  days_left: number;
-  is_expired: boolean;
+  total_visits: number;
+  growth: number;
+}
+
+interface FastestGrowingInstance {
+  id: number;
+  name: string;
+  slug: string;
+  current_month: number;
+  last_month: number;
+  growth_percent: number;
+}
+
+interface HourlyActivity {
+  hour: number;
+  total: number;
 }
 
 interface RecentActivity {
   id: number;
   action: string;
-  description: string | null;
-  user_name?: string;
-  instance_name?: string;
-  created_at: Date;
+  description: string;
+  user_name: string;
+  user_email: string;
+  user_role: string;
+  created_at: string;
 }
 
-interface PlanStats {
-  starter: number;
-  business: number;
-  enterprise: number;
-}
-
-interface DashboardResponse {
-  success: boolean;
-  stats: DashboardStats;
-  expiring_instances: ExpiringInstance[];
-  recent_activities: RecentActivity[];
-  plan_stats: PlanStats;
-}
-
-function formatRelativeTime(date: Date): string {
-  const now = new Date();
-  const diffMs = now.getTime() - new Date(date).getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 1) return "Baru saja";
-  if (diffMins < 60) return `${diffMins} menit lalu`;
-  if (diffHours < 24) return `${diffHours} jam lalu`;
-  return `${diffDays} hari lalu`;
-}
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
-const StatsCard = ({
-  title,
-  value,
-  change,
-  isPositive,
-  icon: Icon,
-  delay,
-}: {
-  title: string;
-  value: string | number;
-  change: string;
-  isPositive: boolean;
-  icon: React.ElementType;
-  delay: number;
-}) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.4, delay }}
-    whileHover={{ y: -4, transition: { duration: 0.2 } }}
-    className="bg-white rounded-xl shadow-sm border border-gray-200 p-5"
-  >
-    <div className="flex items-center justify-between mb-3">
-      <div className="p-2 rounded-lg bg-[#407BA7]/10 text-[#407BA7]">
-        <Icon size={20} />
-      </div>
-      <div
-        className={`flex items-center gap-1 text-xs font-medium ${
-          isPositive ? "text-green-600" : "text-red-600"
-        }`}
-      >
-        {isPositive ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
-        {change}
-      </div>
-    </div>
-    <h3 className="text-2xl font-bold text-gray-800">
-      {typeof value === "number" ? value.toLocaleString() : value}
-    </h3>
-    <p className="text-sm text-gray-500 mt-1">{title}</p>
-  </motion.div>
-);
+// Warna untuk bar chart jam sibuk
+const HOUR_COLORS = [
+  "#94a3b8",
+  "#94a3b8",
+  "#94a3b8",
+  "#94a3b8",
+  "#94a3b8",
+  "#94a3b8",
+  "#fbbf24",
+  "#f59e0b",
+  "#f97316",
+  "#ef4444",
+  "#ef4444",
+  "#ef4444",
+  "#10b981",
+  "#10b981",
+  "#10b981",
+  "#10b981",
+  "#10b981",
+  "#10b981",
+  "#3b82f6",
+  "#3b82f6",
+  "#3b82f6",
+  "#8b5cf6",
+  "#8b5cf6",
+  "#8b5cf6",
+];
 
 export default function SuperAdminDashboard() {
-
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [expiringInstances, setExpiringInstances] = useState<ExpiringInstance[]>([]);
-  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
-  const [planStats, setPlanStats] = useState<PlanStats | null>(null);
+  const [chartData, setChartData] = useState<ChartData[]>([]);
+  const [topInstances, setTopInstances] = useState<TopInstance[]>([]);
+  const [fastestGrowing, setFastestGrowing] = useState<
+    FastestGrowingInstance[]
+  >([]);
+  const [hourlyActivity, setHourlyActivity] = useState<HourlyActivity[]>([]);
+  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>(
+    [],
+  );
+  const [chartRange, setChartRange] = useState<"7d" | "30d" | "12m">("7d");
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
-    try {
-      const res = await fetch("/api/superadmin/dashboard");
-      const data: DashboardResponse = await res.json();
-
-      if (!data.success) {
-        throw new Error("Failed to fetch data");
-      }
-
-      setStats(data.stats);
-      setExpiringInstances(data.expiring_instances);
-      setRecentActivities(data.recent_activities);
-      setPlanStats(data.plan_stats);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load dashboard");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
+  // FETCH DATA - langsung di dalam useEffect
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    const fetchDashboard = async () => {
+      setLoading(true);
+      const res = await fetch(
+        `/api/superadmin/dashboard?chartRange=${chartRange}`,
+      );
+      const data = await res.json();
+      if (data.success) {
+        setStats(data.stats);
+        setChartData(data.chartData);
+        setTopInstances(data.topInstances);
+        setFastestGrowing(data.fastestGrowing);
+        setHourlyActivity(data.hourlyActivity);
+        setRecentActivities(data.recentActivities);
+      }
+      setLoading(false);
+    };
+    fetchDashboard();
+  }, [chartRange]);
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchData();
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (diff < 60) return `${diff} detik lalu`;
+    if (diff < 3600) return `${Math.floor(diff / 60)} menit lalu`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} jam lalu`;
+    return date.toLocaleDateString("id-ID");
+  };
+
+  const getGrowthColor = (percent: number) => {
+    if (percent > 0) return "text-green-600";
+    if (percent < 0) return "text-red-600";
+    return "text-gray-500";
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          className="w-8 h-8 border-2 border-[#800016] border-t-transparent rounded-full"
-        />
+      <div className="flex justify-center items-center h-96">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#407BA7]"></div>
       </div>
     );
   }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <AlertCircle size={48} className="text-red-500 mx-auto mb-4" />
-          <p className="text-gray-600">{error}</p>
-          <button
-            onClick={handleRefresh}
-            className="mt-4 px-4 py-2 bg-[#800016] text-white rounded-lg"
-          >
-            Coba Lagi
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const statCards = [
-    {
-      title: "Total Instansi",
-      value: stats?.total_instances ?? 0,
-      change: "+3",
-      isPositive: true,
-      icon: Building2,
-      delay: 0.1,
-    },
-    {
-      title: "Total Pengguna",
-      value: stats?.total_users ?? 0,
-      change: "+12",
-      isPositive: true,
-      icon: Users,
-      delay: 0.15,
-    },
-    {
-      title: "Total Admin",
-      value: stats?.total_admins ?? 0,
-      change: "+5",
-      isPositive: true,
-      icon: UserCheck,
-      delay: 0.2,
-    },
-    {
-      title: "Total Petugas",
-      value: stats?.total_petugas ?? 0,
-      change: "+8",
-      isPositive: true,
-      icon: Clock,
-      delay: 0.25,
-    },
-    {
-      title: "Pendapatan",
-      value: formatCurrency(stats?.total_revenue ?? 0),
-      change: "+15%",
-      isPositive: true,
-      icon: TrendingUp,
-      delay: 0.3,
-    },
-  ];
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 4 && hour < 11) return "Selamat Pagi";
+    if (hour >= 11 && hour < 15) return "Selamat Siang";
+    if (hour >= 15 && hour < 18) return "Selamat Sore";
+    return "Selamat Malam";
+  };
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="flex items-center justify-between flex-wrap gap-4"
-      >
-        <div className="flex items-center gap-3">
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition"
-          >
-            <Download size={16} />
-            Export Report
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="flex items-center gap-2 px-3 py-2 text-sm text-white bg-[#800016] rounded-lg hover:bg-[#A0001C] transition disabled:opacity-50"
-          >
-            <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
-            {refreshing ? "Refreshing..." : "Refresh"}
-          </motion.button>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-gray-800">
+              {getGreeting()}, Super Admin
+            </h1>
+            <span className="text-sm text-gray-400">
+              {new Date().toLocaleDateString("id-ID", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
+            </span>
+          </div>
+          <p className="text-gray-500 text-sm mt-1">
+            Ringkasan kinerja seluruh platform VisiTrack
+          </p>
         </div>
-      </motion.div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-5">
-        {statCards.map((card) => (
-          <StatsCard key={card.title} {...card} />
-        ))}
+        <button
+          onClick={() => window.location.reload()}
+          className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+        >
+          <RefreshCw size={16} />
+          Refresh
+        </button>
       </div>
 
-      {/* Stats Ringkasan Instansi */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.35 }}
-          className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex items-center gap-4"
-        >
-          <div className="p-3 rounded-full bg-green-100">
-            <CheckCircle size={24} className="text-green-600" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Instansi Aktif</p>
-            <p className="text-2xl font-bold text-gray-800">
-              {stats?.active_instances ?? 0}
-            </p>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.4 }}
-          className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex items-center gap-4"
-        >
-          <div className="p-3 rounded-full bg-red-100">
-            <XCircle size={24} className="text-red-600" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Instansi Expired</p>
-            <p className="text-2xl font-bold text-gray-800">
-              {stats?.expired_instances ?? 0}
-            </p>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.45 }}
-          className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex items-center gap-4"
-        >
-          <div className="p-3 rounded-full bg-blue-100">
-            <Clock size={24} className="text-blue-600" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Instansi Trial</p>
-            <p className="text-2xl font-bold text-gray-800">
-              {stats?.trial_instances ?? 0}
-            </p>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.5 }}
-          className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex items-center gap-4"
-        >
-          <div className="p-3 rounded-full bg-purple-100">
-            <TrendingUp size={24} className="text-purple-600" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Total PPID</p>
-            <p className="text-2xl font-bold text-gray-800">
-              {stats?.total_ppid ?? 0}
-            </p>
-          </div>
-        </motion.div>
+      {/* Main KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <KpiCard
+          title="Total Instansi"
+          value={stats?.total_instances || 0}
+          subValue={`${stats?.active_instances || 0} aktif`}
+          icon={<Building2 size={22} />}
+          color="bg-blue-50"
+          iconColor="text-blue-600"
+        />
+        <KpiCard
+          title="Kunjungan Bulan Ini"
+          value={stats?.total_guests_this_month?.toLocaleString() || 0}
+          trend={stats?.guest_growth}
+          subValue={`vs ${stats?.total_guests_last_month?.toLocaleString() || 0} bulan lalu`}
+          icon={<Calendar size={22} />}
+          color="bg-emerald-50"
+          iconColor="text-emerald-600"
+        />
+        <KpiCard
+          title="Pendapatan (MRR)"
+          value={formatCurrency(stats?.revenue_mrr || 0)}
+          trend={stats?.revenue_growth}
+          subValue={`dari ${formatCurrency(stats?.revenue_last_month || 0)}`}
+          icon={<DollarSign size={22} />}
+          color="bg-amber-50"
+          iconColor="text-amber-600"
+        />
+        <KpiCard
+          title="Aktivitas Hari Ini"
+          value={stats?.total_guests_today || 0}
+          subValue={`${stats?.active_visits || 0} sedang berkunjung`}
+          icon={<Zap size={22} />}
+          color="bg-purple-50"
+          iconColor="text-purple-600"
+        />
       </div>
 
-      {/* Plan Distribution & Expiring Instances */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Plan Distribution */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.55 }}
-          className="bg-white rounded-xl shadow-sm border border-gray-200 p-5"
-        >
-          <h3 className="font-semibold text-gray-800 mb-4">Distribusi Paket</h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <GraduationCap size={18} className="text-[#407BA7]" />
-                <span className="text-sm text-gray-600">Starter</span>
-              </div>
-              <span className="text-sm font-semibold text-gray-800">
-                {planStats?.starter ?? 0} instansi
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Briefcase size={18} className="text-[#800016]" />
-                <span className="text-sm text-gray-600">Business</span>
-              </div>
-              <span className="text-sm font-semibold text-gray-800">
-                {planStats?.business ?? 0} instansi
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Crown size={18} className="text-[#FF002B]" />
-                <span className="text-sm text-gray-600">Enterprise</span>
-              </div>
-              <span className="text-sm font-semibold text-gray-800">
-                {planStats?.enterprise ?? 0} instansi
-              </span>
-            </div>
-          </div>
-        </motion.div>
+      {/* Secondary Stats Row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        <SmallStatCard
+          title="Instansi Aktif"
+          value={stats?.active_instances || 0}
+          icon={<Activity size={14} />}
+          color="text-green-600"
+          bgColor="bg-green-50"
+        />
+        <SmallStatCard
+          title="Instansi Trial"
+          value={stats?.trial_instances || 0}
+          icon={<Clock size={14} />}
+          color="text-yellow-600"
+          bgColor="bg-yellow-50"
+        />
+        <SmallStatCard
+          title="Instansi Expired"
+          value={stats?.expired_instances || 0}
+          icon={<AlertCircle size={14} />}
+          color="text-red-600"
+          bgColor="bg-red-50"
+        />
+        <SmallStatCard
+          title="Total Admin"
+          value={stats?.total_admins || 0}
+          icon={<Users size={14} />}
+          color="text-blue-600"
+          bgColor="bg-blue-50"
+        />
+        <SmallStatCard
+          title="Total Petugas"
+          value={stats?.total_petugas || 0}
+          icon={<UserCheck size={14} />}
+          color="text-orange-600"
+          bgColor="bg-orange-50"
+        />
+        <SmallStatCard
+          title="Total Karyawan"
+          value={stats?.total_employees || 0}
+          icon={<Users size={14} />}
+          color="text-teal-600"
+          bgColor="bg-teal-50"
+        />
+      </div>
 
-        {/* Instansi Expired Alert */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.6 }}
-          className="bg-white rounded-xl shadow-sm border border-gray-200 p-5"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <AlertCircle size={18} className="text-[#FF002B]" />
-              <h3 className="font-semibold text-gray-800">
-                Instansi Akan Expired
-              </h3>
-            </div>
-            <Link
-              href="/superadmin/instances"
-              className="text-xs text-[#407BA7] hover:underline"
-            >
-              Lihat semua
-            </Link>
-          </div>
-          <div className="space-y-3">
-            {expiringInstances.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-4">
-                Tidak ada instansi yang akan expired
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Trend Chart */}
+        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <div className="flex justify-between items-center mb-5">
+            <div>
+              <h2 className="text-base font-semibold text-gray-800">
+                Tren Kunjungan
+              </h2>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Perkembangan jumlah tamu dari waktu ke waktu
               </p>
-            ) : (
-              expiringInstances.map((inst, idx) => (
-                <motion.div
-                  key={inst.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3, delay: idx * 0.05 }}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+            </div>
+            <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
+              {[
+                { key: "7d", label: "7 Hari" },
+                { key: "30d", label: "30 Hari" },
+                { key: "12m", label: "12 Bulan" },
+              ].map((option) => (
+                <button
+                  key={option.key}
+                  onClick={() => setChartRange(option.key as typeof chartRange)}
+                  className={`px-3 py-1.5 text-xs rounded-md transition ${
+                    chartRange === option.key
+                      ? "bg-white shadow-sm text-[#407BA7] font-medium"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
                 >
-                  <div>
-                    <p className="font-medium text-gray-800 text-sm">
-                      {inst.name}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {inst.plan === 'starter' ? 'Starter' : inst.plan === 'business' ? 'Business' : 'Enterprise'}
-                    </p>
-                    <p
-                      className={`text-xs mt-0.5 ${
-                        inst.is_expired
-                          ? "text-red-600"
-                          : inst.days_left <= 7
-                          ? "text-orange-500"
-                          : "text-gray-500"
-                      }`}
-                    >
-                      {inst.is_expired
-                        ? "Sudah expired!"
-                        : `${inst.days_left} hari lagi`}
-                    </p>
-                  </div>
-                  <button className="px-3 py-1 text-xs text-white bg-[#407BA7] rounded-lg hover:bg-[#356a8f] transition">
-                    Perpanjang
-                  </button>
-                </motion.div>
-              ))
-            )}
+                  {option.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </motion.div>
+          <div className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={chartData}
+                margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis
+                  dataKey="period"
+                  tick={{ fontSize: 11 }}
+                  stroke="#888"
+                  tickLine={false}
+                />
+                <YAxis tick={{ fontSize: 11 }} stroke="#888" tickLine={false} />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: "8px",
+                    border: "none",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                    fontSize: "12px",
+                  }}
+                  formatter={(value) => [`${value} tamu`, "Kunjungan"]}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="total"
+                  stroke="#407BA7"
+                  strokeWidth={2.5}
+                  dot={{ fill: "#407BA7", strokeWidth: 2, r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Peak Hours Chart */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <h2 className="text-base font-semibold text-gray-800 mb-3">
+            Jam Sibuk Kunjungan
+          </h2>
+          <p className="text-xs text-gray-400 mb-4">
+            Aktivitas tertinggi dalam 7 hari terakhir
+          </p>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={hourlyActivity}
+                margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis
+                  dataKey="hour"
+                  tick={{ fontSize: 10 }}
+                  stroke="#888"
+                  tickLine={false}
+                />
+                <YAxis tick={{ fontSize: 10 }} stroke="#888" tickLine={false} />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: "8px",
+                    border: "none",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                    fontSize: "12px",
+                  }}
+                  formatter={(value) => [`${value} kunjungan`, "Jumlah"]}
+                  labelFormatter={(label) => `${label}:00 - ${label + 1}:00`}
+                />
+                <Bar dataKey="total" radius={[4, 4, 0, 0]}>
+                  {hourlyActivity.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={HOUR_COLORS[entry.hour]}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <p className="text-center text-xs text-gray-400 mt-2">
+            🕐 Warna merah = jam tersibuk
+          </p>
+        </div>
       </div>
 
-      {/* Recent Activity & Quick Actions */}
+      {/* Bottom Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Activity Log */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.65 }}
-          className="bg-white rounded-xl shadow-sm border border-gray-200 p-5"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-800">Aktivitas Terbaru</h3>
-            <Link
-              href="/superadmin/activity-logs"
-              className="text-xs text-[#407BA7] hover:underline flex items-center gap-1"
-            >
-              Lihat semua <Eye size={12} />
-            </Link>
+        {/* Top Instances */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100 bg-gray-50">
+            <h2 className="text-base font-semibold text-gray-800 flex items-center gap-2">
+              <Award size={18} className="text-yellow-500" />
+              Instansi dengan Kunjungan Terbanyak
+            </h2>
           </div>
           <div className="divide-y divide-gray-100">
-            {recentActivities.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-4">
-                Belum ada aktivitas
-              </p>
+            {topInstances.length === 0 ? (
+              <p className="text-center text-gray-400 py-8">Belum ada data</p>
             ) : (
-              recentActivities.map((activity, idx) => (
-                <motion.div
-                  key={activity.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3, delay: idx * 0.03 }}
-                  className="py-3 first:pt-0 last:pb-0 border-b border-gray-100 last:border-0"
+              topInstances.map((inst, idx) => (
+                <div
+                  key={inst.id}
+                  className="px-5 py-3 hover:bg-gray-50 transition"
                 >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-sm text-gray-800">
-                        {activity.description || activity.action}
-                      </p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        {activity.user_name ?? "System"}
-                        {activity.instance_name && ` • ${activity.instance_name}`}
-                      </p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600">
+                        {idx + 1}
+                      </div>
+                      <div>
+                        <Link
+                          href={`/${inst.slug}/admin`}
+                          className="font-medium text-gray-800 hover:text-[#407BA7] transition"
+                        >
+                          {inst.name}
+                        </Link>
+                        <p className="text-xs text-gray-400">{inst.slug}</p>
+                      </div>
                     </div>
-                    <span className="text-xs text-gray-400 whitespace-nowrap ml-4">
-                      {formatRelativeTime(new Date(activity.created_at))}
-                    </span>
+                    <div className="text-right">
+                      <p className="font-semibold text-[#407BA7]">
+                        {inst.total_visits.toLocaleString()}
+                      </p>
+                      <p className="text-xs text-gray-400">kunjungan</p>
+                    </div>
                   </div>
-                </motion.div>
+                </div>
               ))
             )}
           </div>
-        </motion.div>
-
-        {/* Quick Actions */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.7 }}
-          className="bg-white rounded-xl shadow-sm border border-gray-200 p-5"
-        >
-          <h3 className="font-semibold text-gray-800 mb-4">Tindakan Cepat</h3>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { name: "Tambah Instansi", desc: "Buat instansi baru", icon: Building2 },
-              { name: "Kelola Admin", desc: "Tambah admin instansi", icon: Users },
-              { name: "Backup Data", desc: "Backup seluruh sistem", icon: Database },
-              { name: "Pengaturan", desc: "Konfigurasi sistem", icon: Settings },
-            ].map((item, idx) => (
-              <motion.button
-                key={item.name}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.2, delay: 0.75 + idx * 0.05 }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition text-left"
-              >
-                <item.icon size={18} className="text-[#407BA7]" />
-                <div>
-                  <p className="text-sm font-medium text-gray-800">{item.name}</p>
-                  <p className="text-xs text-gray-500">{item.desc}</p>
-                </div>
-              </motion.button>
-            ))}
+          <div className="px-5 py-3 border-t border-gray-100 bg-gray-50">
+            <Link
+              href="/superadmin/instances"
+              className="text-sm text-[#407BA7] hover:underline flex items-center gap-1"
+            >
+              Lihat semua instansi <ChevronRight size={14} />
+            </Link>
           </div>
-        </motion.div>
+        </div>
+
+        {/* Fastest Growing Instances */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100 bg-gray-50">
+            <h2 className="text-base font-semibold text-gray-800 flex items-center gap-2">
+              <Rocket size={18} className="text-blue-500" />
+              Instansi dengan Pertumbuhan Tercepat
+            </h2>
+            <p className="text-xs text-gray-400 mt-1">
+              Berdasarkan kunjungan bulan ini vs bulan lalu
+            </p>
+          </div>
+          <div className="divide-y divide-gray-100">
+            {fastestGrowing.length === 0 ? (
+              <p className="text-center text-gray-400 py-8">
+                Belum ada data pertumbuhan
+              </p>
+            ) : (
+              fastestGrowing.map((inst, idx) => (
+                <div
+                  key={inst.id}
+                  className="px-5 py-3 hover:bg-gray-50 transition"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600">
+                        {idx + 1}
+                      </div>
+                      <div>
+                        <Link
+                          href={`/${inst.slug}/admin`}
+                          className="font-medium text-gray-800 hover:text-[#407BA7] transition"
+                        >
+                          {inst.name}
+                        </Link>
+                        <p className="text-xs text-gray-400">{inst.slug}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p
+                        className={`font-semibold ${getGrowthColor(inst.growth_percent)}`}
+                      >
+                        {inst.growth_percent > 0 ? "+" : ""}
+                        {inst.growth_percent}%
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {inst.current_month} kunjungan (bulan ini)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* System Health */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.8 }}
-        className="bg-white rounded-xl shadow-sm border border-gray-200 p-5"
-      >
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          <h3 className="font-semibold text-gray-800">System Health</h3>
+      {/* Recent Activities */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100 bg-gray-50">
+          <h2 className="text-base font-semibold text-gray-800">
+            Aktivitas Terbaru
+          </h2>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: "Database Status", value: "Connected", status: "green" },
-            { label: "Last Backup", value: "2026-04-20 02:00", status: "gray" },
-            { label: "API Latency", value: "124ms", status: "gray" },
-            { label: "Uptime", value: "99.97%", status: "gray" },
-          ].map((item, idx) => (
-            <motion.div
-              key={item.label}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.2, delay: 0.85 + idx * 0.05 }}
-            >
-              <p className="text-xs text-gray-500">{item.label}</p>
-              <p className={`text-sm font-medium mt-1 text-${item.status}-600`}>
-                {item.value}
-              </p>
-            </motion.div>
-          ))}
+        <div className="divide-y divide-gray-100">
+          {recentActivities.length === 0 ? (
+            <p className="text-center text-gray-400 py-8">
+              Belum ada aktivitas
+            </p>
+          ) : (
+            recentActivities.map((activity) => (
+              <div
+                key={activity.id}
+                className="px-5 py-3 hover:bg-gray-50 transition"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-800">
+                      {activity.description}
+                    </p>
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className="text-xs text-gray-400">
+                        {activity.user_name || "System"}
+                      </span>
+                      {activity.user_role && (
+                        <>
+                          <span className="text-xs text-gray-300">•</span>
+                          <span
+                            className={`text-xs px-1.5 py-0.5 rounded-full ${
+                              activity.user_role === "super_admin"
+                                ? "bg-red-100 text-red-600"
+                                : activity.user_role === "admin"
+                                  ? "bg-blue-100 text-blue-600"
+                                  : activity.user_role === "petugas"
+                                    ? "bg-green-100 text-green-600"
+                                    : "bg-purple-100 text-purple-600"
+                            }`}
+                          >
+                            {activity.user_role}
+                          </span>
+                        </>
+                      )}
+                      <span className="text-xs text-gray-400">
+                        {formatDate(activity.created_at)}
+                      </span>
+                    </div>
+                  </div>
+                  <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600 ml-3">
+                    {activity.action}
+                  </span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
-      </motion.div>
+        <div className="px-5 py-3 border-t border-gray-100 bg-gray-50">
+          <Link
+            href="/superadmin/activity-logs"
+            className="text-sm text-[#407BA7] hover:underline flex items-center gap-1"
+          >
+            Lihat semua aktivitas <Eye size={14} />
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ==================== HELPER COMPONENTS ====================
+
+function KpiCard({
+  title,
+  value,
+  subValue,
+  trend,
+  icon,
+  color,
+  iconColor,
+}: {
+  title: string;
+  value: string | number;
+  subValue?: string;
+  trend?: number;
+  icon: React.ReactNode;
+  color: string;
+  iconColor: string;
+}) {
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+      <div className="flex justify-between items-start">
+        <div className={`p-2 rounded-lg ${color}`}>
+          <div className={iconColor}>{icon}</div>
+        </div>
+        {trend !== undefined && (
+          <div
+            className={`flex items-center gap-0.5 text-xs font-medium ${trend > 0 ? "text-green-600" : trend < 0 ? "text-red-600" : "text-gray-500"}`}
+          >
+            {trend > 0 ? (
+              <TrendingUp size={12} />
+            ) : trend < 0 ? (
+              <TrendingDown size={12} />
+            ) : null}
+            <span>{Math.abs(trend)}%</span>
+          </div>
+        )}
+      </div>
+      <p className="text-2xl font-bold text-gray-800 mt-3">{value}</p>
+      <p className="text-xs text-gray-500 mt-1">{title}</p>
+      {subValue && <p className="text-xs text-gray-400 mt-1">{subValue}</p>}
+    </div>
+  );
+}
+
+function SmallStatCard({
+  title,
+  value,
+  icon,
+  color,
+  bgColor,
+}: {
+  title: string;
+  value: number;
+  icon: React.ReactNode;
+  color: string;
+  bgColor: string;
+}) {
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3">
+      <div className="flex items-center gap-2">
+        <div className={`p-1 rounded ${bgColor}`}>
+          <div className={color}>{icon}</div>
+        </div>
+        <div>
+          <p className="text-lg font-bold text-gray-800">
+            {value.toLocaleString()}
+          </p>
+          <p className="text-xs text-gray-400">{title}</p>
+        </div>
+      </div>
     </div>
   );
 }

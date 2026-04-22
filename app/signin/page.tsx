@@ -46,7 +46,7 @@ export default function SignInPage() {
     // Ambil session untuk dapat data user
     const res = await fetch("/api/auth/session");
     const session = await res.json();
-
+    
     if (rememberMe) {
       localStorage.setItem("rememberMe", "true");
     }

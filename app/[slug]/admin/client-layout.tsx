@@ -6,39 +6,65 @@ import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
-  Building2,
   Users,
-  Activity,
+  UserCheck,
+  Shield,
   Settings,
+  FileText,
+  Activity,
   Bell,
   LogOut,
   Menu,
   X,
   ChevronLeft,
   ChevronRight,
-  FileText,
-  Database,
 } from "lucide-react";
 import Image from "next/image";
 import { signOut } from "next-auth/react";
 
 const menuItems = [
-  { name: "Dashboard", href: "/superadmin", icon: LayoutDashboard },
-  { name: "Instansi", href: "/superadmin/instances", icon: Building2 },
-  { name: "Admin Instansi", href: "/superadmin/admins", icon: Users },
-  { name: "Activity Logs", href: "/superadmin/activity-logs", icon: Activity },
-  { name: "Backup & System", href: "/superadmin/system", icon: Database },
+  { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Karyawan", href: "/employees", icon: Users },
+  { name: "Petugas", href: "/petugas", icon: UserCheck },
+  { name: "PPID", href: "/ppid", icon: Shield },
+  { name: "Pengaturan", href: "/pengaturan", icon: Settings },
+  { name: "Laporan", href: "/laporan", icon: FileText },
+  { name: "Activity Logs", href: "/activity-logs", icon: Activity },
 ];
 
-export default function SuperAdminLayout({
-  children,
-}: {
+interface AdminClientLayoutProps {
   children: React.ReactNode;
-}) {
+  slug: string;
+  instanceName: string;
+  instanceLogo: string | null;
+  adminName: string;
+  adminEmail: string;
+  userRole: string | null;
+}
+
+export default function AdminClientLayout({
+  children,
+  slug,
+  instanceName,
+  instanceLogo,
+  adminName,
+  adminEmail,
+  userRole,
+}: AdminClientLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+
+  // Ambil inisial untuk avatar
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
   // Deteksi ukuran layar
   useEffect(() => {
@@ -57,7 +83,6 @@ export default function SuperAdminLayout({
     return () => window.removeEventListener("resize", checkScreen);
   }, []);
 
-  // Tutup mobile menu saat pathname berubah (tanpa useEffect)
   const handleLinkClick = () => {
     if (isMobile) {
       setMobileMenuOpen(false);
@@ -78,6 +103,8 @@ export default function SuperAdminLayout({
     setMobileMenuOpen(false);
   };
 
+  const getHref = (href: string) => `/${slug}/admin${href}`;
+
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       {/* Overlay untuk mobile */}
@@ -93,7 +120,7 @@ export default function SuperAdminLayout({
         )}
       </AnimatePresence>
 
-      {/* Sidebar untuk Desktop (dengan toggle) */}
+      {/* Sidebar untuk Desktop */}
       {!isMobile && (
         <motion.aside
           initial={{ width: 280 }}
@@ -101,32 +128,45 @@ export default function SuperAdminLayout({
           transition={{ duration: 0.2, ease: "easeOut" }}
           className="relative bg-white border-r border-gray-200 h-screen flex flex-col shadow-lg"
         >
-          {/* Logo */}
+          {/* Logo Instansi */}
           <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200">
             {sidebarOpen ? (
-              <Link href="/superadmin" className="flex items-center gap-2">
-                <Image
-                  src="/images/icon.svg"
-                  alt="VisiTrack Logo"
-                  width={36}
-                  height={36}
-                  className="size-9"
-                  priority
-                />
-                <span className="text-xl font-bold text-[#800016]">
-                  VisiTrack
+              <Link
+                href={getHref("/dashboard")}
+                className="flex items-center gap-2"
+              >
+                {instanceLogo ? (
+                  <Image
+                    src={instanceLogo}
+                    alt={instanceName}
+                    width={36}
+                    height={36}
+                    className="size-9 rounded-lg object-cover"
+                  />
+                ) : (
+                  <div className="size-9 rounded-lg bg-[#800016] flex items-center justify-center text-white font-bold text-sm">
+                    {instanceName.charAt(0)}
+                  </div>
+                )}
+                <span className="text-xl font-bold text-[#800016] truncate max-w-[180px]">
+                  {instanceName}
                 </span>
               </Link>
             ) : (
               <div className="w-full flex items-center justify-center">
-                <Image
-                  src="/images/icon.svg"
-                  alt="VisiTrack Logo"
-                  width={36}
-                  height={36}
-                  className="size-9"
-                  priority
-                />
+                {instanceLogo ? (
+                  <Image
+                    src={instanceLogo}
+                    alt={instanceName}
+                    width={36}
+                    height={36}
+                    className="size-9 rounded-lg object-cover"
+                  />
+                ) : (
+                  <div className="size-9 rounded-lg bg-[#800016] flex items-center justify-center text-white font-bold text-sm">
+                    {instanceName.charAt(0)}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -135,11 +175,15 @@ export default function SuperAdminLayout({
           <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
             {menuItems.map((item) => {
               const Icon = item.icon;
-              const isActive = pathname === item.href;
+              const isActive =
+                  item.href === "/"
+                    ? pathname === `/${slug}/${userRole}`
+                    : pathname.startsWith(getHref(item.href));
               return (
                 <Link
                   key={item.name}
-                  href={item.href}
+                  href={getHref(item.href)}
+                  onClick={handleLinkClick}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 mb-2 group ${
                     isActive
                       ? "bg-[#800016] text-white shadow-sm"
@@ -165,7 +209,10 @@ export default function SuperAdminLayout({
 
           {/* Logout */}
           <div className="p-4 border-t border-gray-200">
-            <button onClick={() => signOut({ callbackUrl: '/signin' })} className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-gray-600 hover:bg-gray-100 transition group cursor-pointer">
+            <button
+              onClick={() => signOut({ callbackUrl: "/signin" })}
+              className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-gray-600 hover:bg-gray-100 transition group cursor-pointer"
+            >
               <div className="size-9 rounded-lg grid place-items-center bg-gray-100 text-[#800016] group-hover:bg-[#800016]/10 transition-colors">
                 <LogOut size={20} />
               </div>
@@ -175,7 +222,7 @@ export default function SuperAdminLayout({
             </button>
           </div>
 
-          {/* Tombol Toggle Sidebar (Chevron) */}
+          {/* Tombol Toggle Sidebar */}
           <button
             onClick={toggleSidebar}
             className="absolute -right-3 top-20 bg-white border border-gray-200 rounded-full p-1.5 shadow-md hover:bg-gray-50 transition"
@@ -189,7 +236,7 @@ export default function SuperAdminLayout({
         </motion.aside>
       )}
 
-      {/* Sidebar untuk Mobile (slide from left) */}
+      {/* Sidebar untuk Mobile */}
       <AnimatePresence>
         {isMobile && mobileMenuOpen && (
           <motion.aside
@@ -202,20 +249,25 @@ export default function SuperAdminLayout({
             {/* Logo */}
             <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200">
               <Link
-                href="/superadmin"
+                href={getHref("/dashboard")}
                 className="flex items-center gap-2"
                 onClick={handleLinkClick}
               >
-                <Image
-                  src="/images/icon.svg"
-                  alt="VisiTrack Logo"
-                  width={36}
-                  height={36}
-                  className="size-9"
-                  priority
-                />
-                <span className="text-xl font-bold text-[#800016]">
-                  VisiTrack
+                {instanceLogo ? (
+                  <Image
+                    src={instanceLogo}
+                    alt={instanceName}
+                    width={36}
+                    height={36}
+                    className="size-9 rounded-lg object-cover"
+                  />
+                ) : (
+                  <div className="size-9 rounded-lg bg-[#800016] flex items-center justify-center text-white font-bold text-sm">
+                    {instanceName.charAt(0)}
+                  </div>
+                )}
+                <span className="text-xl font-bold text-[#800016] truncate max-w-[180px]">
+                  {instanceName}
                 </span>
               </Link>
               <button
@@ -230,11 +282,14 @@ export default function SuperAdminLayout({
             <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
               {menuItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = pathname === item.href;
+                const isActive =
+                  item.href === "/"
+                    ? pathname === `/${slug}/${userRole}`
+                    : pathname.startsWith(getHref(item.href));
                 return (
                   <Link
                     key={item.name}
-                    href={item.href}
+                    href={getHref(item.href)}
                     onClick={handleLinkClick}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 mb-2 group ${
                       isActive
@@ -260,7 +315,7 @@ export default function SuperAdminLayout({
             {/* Logout */}
             <div className="p-4 border-t border-gray-200">
               <button
-                onClick={handleLinkClick}
+                onClick={() => signOut({ callbackUrl: "/signin" })}
                 className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-gray-600 hover:bg-gray-100 transition group"
               >
                 <div className="size-9 rounded-lg grid place-items-center bg-gray-100 text-[#800016] group-hover:bg-[#800016]/10 transition-colors">
@@ -289,11 +344,12 @@ export default function SuperAdminLayout({
             )}
             <div className="hidden sm:block">
               <h1 className="text-lg sm:text-xl font-semibold text-gray-800">
-                Platform Super Admin
+                {instanceName}
               </h1>
+              <p className="text-xs text-gray-400">Admin Panel</p>
             </div>
-            <span className="px-2 py-0.5 text-xs font-medium bg-[#800016]/10 text-[#800016] rounded-full whitespace-nowrap">
-              Super Admin
+            <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full whitespace-nowrap">
+              Admin
             </span>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
@@ -303,22 +359,18 @@ export default function SuperAdminLayout({
             </button>
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="text-right hidden sm:block">
-                <p className="text-sm font-medium text-gray-700">Super Admin</p>
-                <p className="text-xs text-gray-400">
-                  superadmin@visitrack.com
-                </p>
+                <p className="text-sm font-medium text-gray-700">{adminName}</p>
+                <p className="text-xs text-gray-400">{adminEmail}</p>
               </div>
               <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-linear-to-br from-[#800016] to-[#C00021] text-white flex items-center justify-center font-medium text-sm">
-                SA
+                {getInitials(adminName)}
               </div>
             </div>
           </div>
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-          {children}
-        </main>
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );

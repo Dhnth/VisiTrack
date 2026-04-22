@@ -9,7 +9,6 @@ interface InstanceRow {
   slug: string;
   address: string;
   phone: string;
-  plan: string;
   subscription_status: string;
   subscription_end: Date;
   is_active: number;
@@ -18,7 +17,6 @@ interface InstanceRow {
   created_at: Date;
 }
 
-// Helper untuk ambil user dari session
 async function getCurrentUser() {
   const session = await auth();
   if (!session?.user?.email) return null;
@@ -41,7 +39,6 @@ export async function GET() {
         i.slug,
         i.address,
         i.phone,
-        i.plan,
         i.subscription_status,
         i.subscription_end,
         i.is_active,
@@ -61,7 +58,6 @@ export async function GET() {
       slug: row.slug,
       address: row.address,
       phone: row.phone,
-      plan: row.plan,
       subscription_status: row.subscription_status,
       subscription_end: row.subscription_end,
       is_active: row.is_active === 1,
@@ -89,9 +85,9 @@ export async function POST(request: Request) {
   try {
     const currentUser = await getCurrentUser();
     const body = await request.json();
-    const { name, slug, address, phone, plan, subscription_end } = body;
+    const { name, slug, address, phone, subscription_end } = body;
 
-    if (!name || !slug || !address || !phone || !plan || !subscription_end) {
+    if (!name || !slug || !address || !phone || !subscription_end) {
       return NextResponse.json(
         { success: false, error: 'Semua field wajib diisi' },
         { status: 400 }
@@ -115,9 +111,9 @@ export async function POST(request: Request) {
 
     const result = await query(
       `INSERT INTO instances 
-        (name, slug, address, phone, plan, subscription_start, subscription_end, subscription_status, is_active, created_at, updated_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-      [name, slug, address, phone, plan, subscription_start, subscription_end, subscription_status, 1]
+        (name, slug, address, phone, subscription_start, subscription_end, subscription_status, is_active, created_at, updated_at) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())`,
+      [name, slug, address, phone, subscription_start, subscription_end, subscription_status]
     ) as { insertId: number };
 
     await query(
@@ -126,7 +122,6 @@ export async function POST(request: Request) {
       [result.insertId]
     );
 
-    // LOG ACTIVITY
     if (currentUser) {
       await createActivityLog({
         instance_id: null,
@@ -135,7 +130,7 @@ export async function POST(request: Request) {
         table_name: 'instances',
         record_id: result.insertId,
         description: `Menambahkan instansi baru: ${name} (${slug})`,
-        new_data: { name, slug, address, phone, plan, subscription_end },
+        new_data: { name, slug, address, phone, subscription_end },
         ip_address: request.headers.get('x-forwarded-for') || undefined,
         user_agent: request.headers.get('user-agent') || undefined,
       });
@@ -160,7 +155,7 @@ export async function PUT(request: Request) {
   try {
     const currentUser = await getCurrentUser();
     const body = await request.json();
-    const { id, name, slug, address, phone, plan, subscription_end, is_active } = body;
+    const { id, name, slug, address, phone, subscription_end, is_active } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -200,7 +195,6 @@ export async function PUT(request: Request) {
     if (slug) { updates.push('slug = ?'); values.push(slug); }
     if (address) { updates.push('address = ?'); values.push(address); }
     if (phone) { updates.push('phone = ?'); values.push(phone); }
-    if (plan) { updates.push('plan = ?'); values.push(plan); }
     if (subscription_end) { updates.push('subscription_end = ?'); values.push(subscription_end); }
     if (subscription_status) { updates.push('subscription_status = ?'); values.push(subscription_status); }
     if (is_active !== undefined) { updates.push('is_active = ?'); values.push(is_active ? 1 : 0); }
@@ -221,7 +215,6 @@ export async function PUT(request: Request) {
       if (slug) newData.slug = slug;
       if (address) newData.address = address;
       if (phone) newData.phone = phone;
-      if (plan) newData.plan = plan;
       if (subscription_end) newData.subscription_end = subscription_end;
       if (is_active !== undefined) newData.is_active = is_active;
 
