@@ -29,7 +29,6 @@ const menuItems = [
   { name: "Activity Logs", href: "/superadmin/activity-logs", icon: Activity },
   { name: "Reports", href: "/superadmin/reports", icon: FileText },
   { name: "Backup & System", href: "/superadmin/system", icon: Database },
-  { name: "Settings", href: "/superadmin/settings", icon: Settings },
 ];
 
 export default function SuperAdminLayout({

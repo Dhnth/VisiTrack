@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -24,7 +23,6 @@ import {
   Briefcase,
   GraduationCap,
 } from "lucide-react";
-import { auth } from "@/lib/auth";
 
 interface DashboardStats {
   total_instances: number;
@@ -476,7 +474,7 @@ export default function SuperAdminDashboard() {
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-gray-800">Aktivitas Terbaru</h3>
             <Link
-              href="/superadmin/logs"
+              href="/superadmin/activity-logs"
               className="text-xs text-[#407BA7] hover:underline flex items-center gap-1"
             >
               Lihat semua <Eye size={12} />
