@@ -1,24 +1,46 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import {
-  Calendar, Users, Clock,
-  TrendingUp, UserCheck, RefreshCw,
-  User, Building2, Briefcase
-} from 'lucide-react';
+import Link from 'next/link';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
+import {
+  Calendar, Users, Clock, TrendingUp, UserCheck, 
+  RefreshCw, Award, Eye, Activity, Zap, User,
+  Building2, Briefcase, ChevronRight
+} from 'lucide-react';
+import {
+  LineChart, Line, XAxis, YAxis,
+  CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, Cell
+} from 'recharts';
 
 interface DashboardStats {
   total_guests_today: number;
+  total_guests_this_month: number;
+  total_guests_last_month: number;
   total_pending: number;
   total_active: number;
   total_employees: number;
-  total_guests_this_month: number;
-  pending_percent: number;
-  active_percent: number;
-  done_percent: number;
-  rejected_percent: number;
+  active_visits: number;
+  guest_growth: number;
+}
+
+interface ChartData {
+  period: string;
+  total: number;
+}
+
+interface TopEmployee {
+  id: number;
+  name: string;
+  department: string;
+  total_visits: number;
+}
+
+interface HourlyActivity {
+  hour: number;
+  total: number;
 }
 
 interface Guest {
@@ -28,52 +50,79 @@ interface Guest {
   purpose: string;
   status: string;
   photo_url: string;
-  check_in_at: string | null;
   created_at: string;
   employee_name: string;
   employee_department: string;
 }
 
-interface ChartData {
-  period: string;
-  total: number;
+interface RecentActivity {
+  id: number;
+  action: string;
+  description: string;
+  user_name: string;
+  created_at: string;
 }
+
+// Warna untuk bar chart jam sibuk
+const HOUR_COLORS = [
+  '#94a3b8', '#94a3b8', '#94a3b8', '#94a3b8', '#94a3b8', '#94a3b8',
+  '#fbbf24', '#f59e0b', '#f97316', '#ef4444', '#ef4444', '#ef4444',
+  '#10b981', '#10b981', '#10b981', '#10b981', '#10b981', '#10b981',
+  '#3b82f6', '#3b82f6', '#3b82f6', '#8b5cf6', '#8b5cf6', '#8b5cf6'
+];
 
 export default function AdminDashboardPage() {
   const params = useParams();
+  const slug = params.slug as string;
+  
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [chartData, setChartData] = useState<ChartData[]>([]);
+  const [topEmployees, setTopEmployees] = useState<TopEmployee[]>([]);
+  const [hourlyActivity, setHourlyActivity] = useState<HourlyActivity[]>([]);
   const [pendingGuests, setPendingGuests] = useState<Guest[]>([]);
   const [activeGuests, setActiveGuests] = useState<Guest[]>([]);
-  const [chart, setChart] = useState<ChartData[]>([]);
-  const [period, setPeriod] = useState<'week' | 'month' | 'year'>('week');
+  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
+  const [chartRange, setChartRange] = useState<'7d' | '30d' | '12m'>('7d');
   const [loading, setLoading] = useState(true);
 
+  // FETCH DATA - langsung di dalam useEffect
   useEffect(() => {
     const fetchDashboard = async () => {
       setLoading(true);
-      const res = await fetch(`/api/admin/dashboard?period=${period}`);
+      const res = await fetch(`/api/admin/dashboard?chartRange=${chartRange}`);
       const data = await res.json();
       if (data.success) {
         setStats(data.stats);
+        setChartData(data.chartData);
+        setTopEmployees(data.topEmployees);
+        setHourlyActivity(data.hourlyActivity);
         setPendingGuests(data.pendingGuests);
         setActiveGuests(data.activeGuests);
-        setChart(data.chart);
+        setRecentActivities(data.recentActivities);
       }
       setLoading(false);
     };
     fetchDashboard();
-  }, [period]);
+  }, [chartRange]);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('id-ID', {
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 4 && hour < 11) return "Selamat Pagi";
+    if (hour >= 11 && hour < 15) return "Selamat Siang";
+    if (hour >= 15 && hour < 18) return "Selamat Sore";
+    return "Selamat Malam";
   };
 
-  const maxChart = Math.max(...chart.map(c => c.total), 1);
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (diff < 60) return `${diff} detik lalu`;
+    if (diff < 3600) return `${Math.floor(diff / 60)} menit lalu`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} jam lalu`;
+    return date.toLocaleDateString('id-ID');
+  };
 
   if (loading) {
     return (
@@ -83,14 +132,26 @@ export default function AdminDashboardPage() {
     );
   }
 
+  const maxChart = Math.max(...chartData.map(c => c.total), 1);
+
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header with Greeting */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-bold text-gray-800">{getGreeting()}, Admin</h1>
+            <span className="text-sm text-gray-400">
+              {new Date().toLocaleDateString('id-ID', { 
+                weekday: 'long', 
+                day: 'numeric', 
+                month: 'long', 
+                year: 'numeric' 
+              })}
+            </span>
+          </div>
           <p className="text-gray-500 text-sm mt-1">
-            Selamat datang, Admin {params.slug}
+            Ringkasan kinerja instansi {slug}
           </p>
         </div>
         <button
@@ -102,137 +163,243 @@ export default function AdminDashboardPage() {
         </button>
       </div>
 
-      {/* Stat Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <StatCard
+      {/* Main KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <KpiCard
           title="Kunjungan Hari Ini"
           value={stats?.total_guests_today || 0}
-          icon={<Calendar size={20} />}
-          color="bg-blue-50 text-blue-600"
+          icon={<Calendar size={22} />}
+          color="bg-blue-50"
+          iconColor="text-blue-600"
         />
-        <StatCard
-          title="Pending Validasi"
-          value={stats?.total_pending || 0}
-          icon={<Clock size={20} />}
-          color="bg-yellow-50 text-yellow-600"
+        <KpiCard
+          title="Kunjungan Bulan Ini"
+          value={stats?.total_guests_this_month?.toLocaleString() || 0}
+          trend={stats?.guest_growth}
+          subValue={`vs ${stats?.total_guests_last_month?.toLocaleString() || 0} bulan lalu`}
+          icon={<TrendingUp size={22} />}
+          color="bg-emerald-50"
+          iconColor="text-emerald-600"
         />
-        <StatCard
+        <KpiCard
           title="Sedang Berkunjung"
-          value={stats?.total_active || 0}
-          icon={<UserCheck size={20} />}
-          color="bg-green-50 text-green-600"
+          value={stats?.active_visits || 0}
+          icon={<UserCheck size={22} />}
+          color="bg-green-50"
+          iconColor="text-green-600"
         />
-        <StatCard
+        <KpiCard
           title="Total Karyawan"
           value={stats?.total_employees || 0}
-          icon={<Users size={20} />}
-          color="bg-purple-50 text-purple-600"
-        />
-        <StatCard
-          title="Kunjungan Bulan Ini"
-          value={stats?.total_guests_this_month || 0}
-          icon={<TrendingUp size={20} />}
-          color="bg-orange-50 text-orange-600"
+          icon={<Users size={22} />}
+          color="bg-purple-50"
+          iconColor="text-purple-600"
         />
       </div>
 
-      {/* Chart & Status Distribution */}
+      {/* Secondary Stats Row */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <SmallStatCard title="Pending Validasi" value={stats?.total_pending || 0} icon={<Clock size={14} />} color="text-yellow-600" bgColor="bg-yellow-50" />
+        <SmallStatCard title="Sedang Berkunjung" value={stats?.total_active || 0} icon={<Activity size={14} />} color="text-green-600" bgColor="bg-green-50" />
+        <SmallStatCard title="Total Karyawan" value={stats?.total_employees || 0} icon={<Users size={14} />} color="text-teal-600" bgColor="bg-teal-50" />
+      </div>
+
+      {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Chart */}
-        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-800">Tren Kunjungan</h2>
-            <div className="flex gap-2">
-              {(['week', 'month', 'year'] as const).map((p) => (
+        {/* Trend Chart */}
+        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <div className="flex justify-between items-center mb-5">
+            <div>
+              <h2 className="text-base font-semibold text-gray-800">Tren Kunjungan</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Perkembangan jumlah tamu dari waktu ke waktu</p>
+            </div>
+            <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
+              {[
+                { key: '7d', label: '7 Hari' },
+                { key: '30d', label: '30 Hari' },
+                { key: '12m', label: '12 Bulan' }
+              ].map((option) => (
                 <button
-                  key={p}
-                  onClick={() => setPeriod(p)}
-                  className={`px-3 py-1 text-sm rounded-lg transition ${
-                    period === p
-                      ? 'bg-[#407BA7] text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  key={option.key}
+                  onClick={() => setChartRange(option.key as typeof chartRange)}
+                  className={`px-3 py-1.5 text-xs rounded-md transition ${
+                    chartRange === option.key
+                      ? 'bg-white shadow-sm text-[#407BA7] font-medium'
+                      : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  {p === 'week' ? '7 Hari' : p === 'month' ? 'Bulan' : 'Tahun'}
+                  {option.label}
                 </button>
               ))}
             </div>
           </div>
-          <div className="relative h-64">
-            <div className="absolute left-0 top-0 bottom-8 w-12 flex flex-col justify-between text-xs text-gray-400">
-              <span>{maxChart}</span>
-              <span>{Math.round(maxChart / 2)}</span>
-              <span>0</span>
-            </div>
-            <div className="ml-12 h-full flex items-end gap-2">
-              {chart.map((item, idx) => (
-                <div key={idx} className="flex-1 flex flex-col items-center gap-2">
-                  <div
-                    className="w-full bg-linear-to-t from-[#407BA7] to-[#004E89] rounded-t-lg transition-all duration-500"
-                    style={{ height: `${(item.total / maxChart) * 100}%`, minHeight: '4px' }}
-                  />
-                  <span className="text-xs text-gray-500">{item.period}</span>
-                </div>
-              ))}
-            </div>
+          <div className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="period" tick={{ fontSize: 11 }} stroke="#888" tickLine={false} />
+                <YAxis tick={{ fontSize: 11 }} stroke="#888" tickLine={false} />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', fontSize: '12px' }}
+                  formatter={(value) => [`${value} tamu`, 'Kunjungan']}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="total" 
+                  stroke="#407BA7" 
+                  strokeWidth={2.5}
+                  dot={{ fill: '#407BA7', strokeWidth: 2, r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Status Distribution */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Distribusi Status</h2>
-          <div className="space-y-3">
-            <StatusBar label="Pending" value={stats?.pending_percent || 0} color="bg-yellow-500" />
-            <StatusBar label="Sedang Berkunjung" value={stats?.active_percent || 0} color="bg-green-500" />
-            <StatusBar label="Selesai" value={stats?.done_percent || 0} color="bg-blue-500" />
-            <StatusBar label="Ditolak" value={stats?.rejected_percent || 0} color="bg-red-500" />
+        {/* Peak Hours Chart */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <h2 className="text-base font-semibold text-gray-800 mb-3">Jam Sibuk Kunjungan</h2>
+          <p className="text-xs text-gray-400 mb-4">Aktivitas tertinggi dalam 7 hari terakhir</p>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={hourlyActivity} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="hour" tick={{ fontSize: 10 }} stroke="#888" tickLine={false} />
+                <YAxis tick={{ fontSize: 10 }} stroke="#888" tickLine={false} />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', fontSize: '12px' }}
+                  formatter={(value) => [`${value} kunjungan`, 'Jumlah']}
+                  labelFormatter={(label) => `${label}:00 - ${label + 1}:00`}
+                />
+                <Bar dataKey="total" radius={[4, 4, 0, 0]}>
+                  {hourlyActivity.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={HOUR_COLORS[entry.hour]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <p className="text-center text-xs text-gray-400 mt-2">
+            🕐 Warna merah = jam tersibuk
+          </p>
+        </div>
+      </div>
+
+      {/* Bottom Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top Employees */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100 bg-gray-50">
+            <h2 className="text-base font-semibold text-gray-800 flex items-center gap-2">
+              <Award size={18} className="text-yellow-500" />
+              Karyawan Paling Sering Dikunjungi
+            </h2>
+          </div>
+          <div className="divide-y divide-gray-100">
+            {topEmployees.length === 0 ? (
+              <p className="text-center text-gray-400 py-8">Belum ada data</p>
+            ) : (
+              topEmployees.map((emp, idx) => (
+                <div key={emp.id} className="px-5 py-3 hover:bg-gray-50 transition">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600">
+                        {idx + 1}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-800">{emp.name}</p>
+                        <p className="text-xs text-gray-400">{emp.department}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-[#407BA7]">{emp.total_visits.toLocaleString()}</p>
+                      <p className="text-xs text-gray-400">kunjungan</p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <div className="px-5 py-3 border-t border-gray-100 bg-gray-50">
+            <Link href={`/${slug}/admin/employees`} className="text-sm text-[#407BA7] hover:underline flex items-center gap-1">
+              Lihat semua karyawan <ChevronRight size={14} />
+            </Link>
+          </div>
+        </div>
+
+        {/* Recent Activities */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100 bg-gray-50">
+            <h2 className="text-base font-semibold text-gray-800 flex items-center gap-2">
+              <Activity size={18} className="text-blue-500" />
+              Aktivitas Terbaru
+            </h2>
+          </div>
+          <div className="divide-y divide-gray-100">
+            {recentActivities.length === 0 ? (
+              <p className="text-center text-gray-400 py-8">Belum ada aktivitas</p>
+            ) : (
+              recentActivities.map((activity) => (
+                <div key={activity.id} className="px-5 py-3 hover:bg-gray-50 transition">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-800">{activity.description}</p>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="text-xs text-gray-400">{activity.user_name || 'System'}</span>
+                        <span className="text-xs text-gray-400">{formatDate(activity.created_at)}</span>
+                      </div>
+                    </div>
+                    <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600 ml-3">
+                      {activity.action}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <div className="px-5 py-3 border-t border-gray-100 bg-gray-50">
+            <Link href={`/${slug}/admin/activity-logs`} className="text-sm text-[#407BA7] hover:underline flex items-center gap-1">
+              Lihat semua aktivitas <Eye size={14} />
+            </Link>
           </div>
         </div>
       </div>
 
-      {/* Pending Guests (Hanya Lihat, Tanpa Tombol Aksi) */}
+      {/* Pending & Active Guests Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Pending Guests - View Only */}
+        {/* Pending Guests */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 bg-yellow-50">
-            <h2 className="text-lg font-semibold text-yellow-800 flex items-center gap-2">
+          <div className="px-5 py-4 border-b border-gray-100 bg-yellow-50">
+            <h2 className="text-base font-semibold text-yellow-800 flex items-center gap-2">
               <Clock size={18} /> Menunggu Validasi ({pendingGuests.length})
             </h2>
-            <p className="text-xs text-yellow-600 mt-1">*Hanya melihat, validasi dilakukan oleh petugas</p>
+            <p className="text-xs text-yellow-600 mt-0.5">*Hanya melihat, validasi dilakukan oleh petugas</p>
           </div>
-          <div className="divide-y divide-gray-100 max-h-96 overflow-y-auto">
+          <div className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
             {pendingGuests.length === 0 ? (
               <p className="text-center text-gray-400 py-8">Tidak ada tamu pending</p>
             ) : (
               pendingGuests.map((guest) => (
-                <GuestCardViewOnly
-                  key={guest.id}
-                  guest={guest}
-                  formatDate={formatDate}
-                />
+                <GuestCard key={guest.id} guest={guest} type="pending" />
               ))
             )}
           </div>
         </div>
 
-        {/* Active Guests - View Only */}
+        {/* Active Guests */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 bg-green-50">
-            <h2 className="text-lg font-semibold text-green-800 flex items-center gap-2">
+          <div className="px-5 py-4 border-b border-gray-100 bg-green-50">
+            <h2 className="text-base font-semibold text-green-800 flex items-center gap-2">
               <UserCheck size={18} /> Sedang Berkunjung ({activeGuests.length})
             </h2>
-            <p className="text-xs text-green-600 mt-1">*Hanya melihat, checkout dilakukan oleh petugas</p>
+            <p className="text-xs text-green-600 mt-0.5">*Hanya melihat, checkout dilakukan oleh petugas</p>
           </div>
-          <div className="divide-y divide-gray-100 max-h-96 overflow-y-auto">
+          <div className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
             {activeGuests.length === 0 ? (
               <p className="text-center text-gray-400 py-8">Tidak ada tamu aktif</p>
             ) : (
               activeGuests.map((guest) => (
-                <GuestCardViewOnly
-                  key={guest.id}
-                  guest={guest}
-                  formatDate={formatDate}
-                />
+                <GuestCard key={guest.id} guest={guest} type="active" />
               ))
             )}
           </div>
@@ -244,34 +411,75 @@ export default function AdminDashboardPage() {
 
 // ==================== HELPER COMPONENTS ====================
 
-function StatCard({ title, value, icon, color }: { title: string; value: number; icon: React.ReactNode; color: string }) {
+function KpiCard({ 
+  title, 
+  value, 
+  subValue, 
+  trend, 
+  icon, 
+  color, 
+  iconColor 
+}: { 
+  title: string; 
+  value: string | number; 
+  subValue?: string; 
+  trend?: number; 
+  icon: React.ReactNode; 
+  color: string; 
+  iconColor: string;
+}) {
   return (
-    <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-      <div className={`p-2 rounded-lg ${color} w-fit mb-3`}>
-        {icon}
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+      <div className="flex justify-between items-start">
+        <div className={`p-2 rounded-lg ${color}`}>
+          <div className={iconColor}>{icon}</div>
+        </div>
+        {trend !== undefined && (
+          <div className={`flex items-center gap-0.5 text-xs font-medium ${trend > 0 ? 'text-green-600' : trend < 0 ? 'text-red-600' : 'text-gray-500'}`}>
+            {trend > 0 ? <TrendingUp size={12} /> : null}
+            <span>{Math.abs(trend)}%</span>
+          </div>
+        )}
       </div>
-      <p className="text-2xl font-bold text-gray-800">{value.toLocaleString()}</p>
+      <p className="text-2xl font-bold text-gray-800 mt-3">{value}</p>
       <p className="text-xs text-gray-500 mt-1">{title}</p>
+      {subValue && <p className="text-xs text-gray-400 mt-1">{subValue}</p>}
     </div>
   );
 }
 
-function StatusBar({ label, value, color }: { label: string; value: number; color: string }) {
+function SmallStatCard({ title, value, icon, color, bgColor }: { 
+  title: string; 
+  value: number; 
+  icon: React.ReactNode; 
+  color: string; 
+  bgColor: string;
+}) {
   return (
-    <div>
-      <div className="flex justify-between text-sm mb-1">
-        <span className="text-gray-600">{label}</span>
-        <span className="text-gray-500">{value}%</span>
-      </div>
-      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-        <div className={`h-full ${color} rounded-full transition-all duration-500`} style={{ width: `${value}%` }} />
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3">
+      <div className="flex items-center gap-2">
+        <div className={`p-1 rounded ${bgColor}`}>
+          <div className={color}>{icon}</div>
+        </div>
+        <div>
+          <p className="text-lg font-bold text-gray-800">{value.toLocaleString()}</p>
+          <p className="text-xs text-gray-400">{title}</p>
+        </div>
       </div>
     </div>
   );
 }
 
-// Guest Card untuk Admin (HANYA LIHAT, tanpa tombol)
-function GuestCardViewOnly({ guest, formatDate }: { guest: Guest; formatDate: (date: string) => string }) {
+function GuestCard({ guest, type }: { guest: Guest; type: 'pending' | 'active' }) {
+  const formatDateTime = (dateString: string) => {
+    return new Date(dateString).toLocaleString('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   return (
     <div className="p-4 hover:bg-gray-50 transition">
       <div className="flex gap-4">
@@ -289,7 +497,7 @@ function GuestCardViewOnly({ guest, formatDate }: { guest: Guest; formatDate: (d
         <div className="flex-1">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <h3 className="font-semibold text-gray-800">{guest.name}</h3>
-            <span className="text-xs text-gray-400">{formatDate(guest.created_at)}</span>
+            <span className="text-xs text-gray-400">{formatDateTime(guest.created_at)}</span>
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs text-gray-500">
             {guest.institution && (
@@ -298,7 +506,6 @@ function GuestCardViewOnly({ guest, formatDate }: { guest: Guest; formatDate: (d
             <span className="flex items-center gap-1"><Briefcase size={12} /> {guest.purpose}</span>
             <span className="flex items-center gap-1"><Users size={12} /> {guest.employee_name} ({guest.employee_department})</span>
           </div>
-          {/* Status Badge */}
           <div className="mt-2">
             <span className={`text-xs px-2 py-0.5 rounded-full ${
               guest.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :

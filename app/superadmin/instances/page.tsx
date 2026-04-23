@@ -30,8 +30,8 @@ interface Instance {
   address: string;
   phone: string;
   subscription_status: "active" | "expired" | "trial";
-  subscription_start: Date;
-  subscription_end: Date;
+  subscription_start: Date | null;
+  subscription_end: Date | null;
   is_active: boolean;
   total_users: number;
   total_guests: number;
@@ -71,9 +71,7 @@ export default function InstancesPage() {
   const [showFilter, setShowFilter] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState<"add" | "edit">("add");
-  const [selectedInstance, setSelectedInstance] = useState<Instance | null>(
-    null,
-  );
+  const [selectedInstance, setSelectedInstance] = useState<Instance | null>(null);
   const [actionInstance, setActionInstance] = useState<Instance | null>(null);
   const [deleteInstance, setDeleteInstance] = useState<Instance | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -117,14 +115,12 @@ export default function InstancesPage() {
       filtered = filtered.filter(
         (inst) =>
           inst.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          inst.slug.toLowerCase().includes(searchTerm.toLowerCase()),
+          inst.slug.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
     if (statusFilter !== "all") {
-      filtered = filtered.filter(
-        (inst) => inst.subscription_status === statusFilter,
-      );
+      filtered = filtered.filter((inst) => inst.subscription_status === statusFilter);
     }
 
     setFilteredInstances(filtered);
@@ -149,18 +145,23 @@ export default function InstancesPage() {
   const openEditModal = (instance: Instance) => {
     setModalMode("edit");
     setSelectedInstance(instance);
+    
+    // Validasi untuk menghindari error jika subscription_start/subscription_end null
+    const startDate = instance.subscription_start 
+      ? new Date(instance.subscription_start).toISOString().split("T")[0]
+      : "";
+    const endDate = instance.subscription_end 
+      ? new Date(instance.subscription_end).toISOString().split("T")[0]
+      : "";
+    
     setFormData({
       id: instance.id,
       name: instance.name,
       slug: instance.slug,
       address: instance.address,
       phone: instance.phone,
-      subscription_start: new Date(instance.subscription_start)
-        .toISOString()
-        .split("T")[0],
-      subscription_end: new Date(instance.subscription_end)
-        .toISOString()
-        .split("T")[0],
+      subscription_start: startDate,
+      subscription_end: endDate,
     });
     setFormError("");
     setFormSuccess("");
@@ -176,10 +177,7 @@ export default function InstancesPage() {
     try {
       const url = "/api/superadmin/instances";
       const method = modalMode === "add" ? "POST" : "PUT";
-      const body =
-        modalMode === "add"
-          ? formData
-          : { ...formData, id: selectedInstance?.id };
+      const body = modalMode === "add" ? formData : { ...formData, id: selectedInstance?.id };
 
       const res = await fetch(url, {
         method,
@@ -216,7 +214,7 @@ export default function InstancesPage() {
   const handleAddAdmin = () => {
     if (newInstanceId) {
       router.push(
-        `/superadmin/admins?instanceId=${newInstanceId}&instanceName=${encodeURIComponent(newInstanceName)}`,
+        `/superadmin/admins?instanceId=${newInstanceId}&instanceName=${encodeURIComponent(newInstanceName)}`
       );
     }
   };
@@ -227,10 +225,7 @@ export default function InstancesPage() {
       const res = await fetch("/api/superadmin/instances", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: instance.id,
-          is_active: !instance.is_active,
-        }),
+        body: JSON.stringify({ id: instance.id, is_active: !instance.is_active }),
       });
       const data = await res.json();
       if (data.success) {
@@ -248,12 +243,9 @@ export default function InstancesPage() {
     if (!deleteInstance) return;
     setActionLoading(true);
     try {
-      const res = await fetch(
-        `/api/superadmin/instances?id=${deleteInstance.id}`,
-        {
-          method: "DELETE",
-        },
-      );
+      const res = await fetch(`/api/superadmin/instances?id=${deleteInstance.id}`, {
+        method: "DELETE",
+      });
       const data = await res.json();
       if (data.success) {
         await fetchInstances();
@@ -376,10 +368,7 @@ export default function InstancesPage() {
         </div>
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
           <p className="text-2xl font-bold text-red-600">
-            {
-              instances.filter((i) => i.subscription_status === "expired")
-                .length
-            }
+            {instances.filter((i) => i.subscription_status === "expired").length}
           </p>
           <p className="text-sm text-gray-500">Instansi Expired</p>
         </div>
@@ -423,10 +412,7 @@ export default function InstancesPage() {
             <tbody className="divide-y divide-gray-100">
               {filteredInstances.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan={7}
-                    className="px-6 py-12 text-center text-gray-500"
-                  >
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                     Tidak ada data instansi
                   </td>
                 </tr>
@@ -441,19 +427,13 @@ export default function InstancesPage() {
                   >
                     <td className="px-6 py-4">
                       <div>
-                        <p className="font-medium text-gray-800">
-                          {instance.name}
-                        </p>
+                        <p className="font-medium text-gray-800">{instance.name}</p>
                         <p className="text-xs text-gray-400">{instance.slug}</p>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {instance.phone}
-                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{instance.phone}</td>
                     <td className="px-6 py-4">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[instance.subscription_status]}`}
-                      >
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[instance.subscription_status]}`}>
                         {statusNames[instance.subscription_status]}
                       </span>
                       {!instance.is_active && (
@@ -466,33 +446,29 @@ export default function InstancesPage() {
                       <div className="flex items-center gap-1">
                         <Calendar size={14} className="text-gray-400" />
                         <span className="text-sm text-gray-600">
-                          {new Date(
-                            instance.subscription_end,
-                          ).toLocaleDateString("id-ID")}
+                          {instance.subscription_end 
+                            ? new Date(instance.subscription_end).toLocaleDateString("id-ID")
+                            : "-"}
                         </span>
                       </div>
-                      <p
-                        className={`text-xs mt-1 ${getDaysLeftColor(instance.days_left)}`}
-                      >
-                        {instance.days_left < 0
-                          ? "Sudah expired"
-                          : `${instance.days_left} hari lagi`}
-                      </p>
+                      {instance.days_left !== 0 && (
+                        <p className={`text-xs mt-1 ${getDaysLeftColor(instance.days_left)}`}>
+                          {instance.days_left < 0
+                            ? "Sudah expired"
+                            : `${instance.days_left} hari lagi`}
+                        </p>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1">
                         <Users size={14} className="text-gray-400" />
-                        <span className="text-sm text-gray-600">
-                          {instance.total_users}
-                        </span>
+                        <span className="text-sm text-gray-600">{instance.total_users}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1">
                         <FileText size={14} className="text-gray-400" />
-                        <span className="text-sm text-gray-600">
-                          {instance.total_guests}
-                        </span>
+                        <span className="text-sm text-gray-600">{instance.total_guests}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -521,9 +497,7 @@ export default function InstancesPage() {
                         <button
                           onClick={() => setActionInstance(instance)}
                           className="p-1.5 rounded-lg hover:bg-gray-100 transition"
-                          title={
-                            instance.is_active ? "Nonaktifkan" : "Aktifkan"
-                          }
+                          title={instance.is_active ? "Nonaktifkan" : "Aktifkan"}
                         >
                           {instance.is_active ? (
                             <PowerOff size={16} className="text-red-500" />
@@ -549,7 +523,7 @@ export default function InstancesPage() {
         </div>
       </div>
 
-      {/* Modal Form */}
+      {/* Modal Form - (sama seperti sebelumnya, tidak perlu diubah) */}
       <AnimatePresence>
         {showModal && (
           <motion.div
@@ -568,14 +542,9 @@ export default function InstancesPage() {
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-semibold text-gray-800">
-                  {modalMode === "add"
-                    ? "Tambah Instansi Baru"
-                    : "Edit Instansi"}
+                  {modalMode === "add" ? "Tambah Instansi Baru" : "Edit Instansi"}
                 </h3>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="p-1 rounded-lg hover:bg-gray-100 transition"
-                >
+                <button onClick={() => setShowModal(false)} className="p-1 rounded-lg hover:bg-gray-100 transition">
                   <X size={20} />
                 </button>
               </div>
@@ -583,51 +552,34 @@ export default function InstancesPage() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Nama Instansi *
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nama Instansi *</label>
                     <input
                       type="text"
                       value={formData.name}
-                      onChange={(e) =>
-                        setFormData({ ...formData, name: e.target.value })
-                      }
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#407BA7]"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Slug (URL) *
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Slug (URL) *</label>
                     <input
                       type="text"
                       value={formData.slug}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          slug: e.target.value.toLowerCase().replace(/\s/g, ""),
-                        })
-                      }
+                      onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/\s/g, "") })}
                       placeholder="contoh: smkn1banjar"
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#407BA7]"
                       required
                     />
-                    <p className="text-xs text-gray-400 mt-1">
-                      Akan digunakan di URL: /{formData.slug || "slug"}/...
-                    </p>
+                    <p className="text-xs text-gray-400 mt-1">Akan digunakan di URL: /{formData.slug || "slug"}/...</p>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Alamat *
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Alamat *</label>
                   <textarea
                     value={formData.address}
-                    onChange={(e) =>
-                      setFormData({ ...formData, address: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                     rows={2}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#407BA7]"
                     required
@@ -636,55 +588,35 @@ export default function InstancesPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Telepon *
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Telepon *</label>
                     <input
                       type="tel"
                       value={formData.phone}
-                      onChange={(e) =>
-                        setFormData({ ...formData, phone: e.target.value })
-                      }
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#407BA7]"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Tanggal Mulai Langganan *
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Mulai Langganan *</label>
                     <input
                       type="date"
                       value={formData.subscription_start}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          subscription_start: e.target.value,
-                        })
-                      }
+                      onChange={(e) => setFormData({ ...formData, subscription_start: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#407BA7]"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Tanggal Berakhir Langganan *
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Berakhir Langganan *</label>
                     <input
                       type="date"
                       value={formData.subscription_end}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          subscription_end: e.target.value,
-                        })
-                      }
+                      onChange={(e) => setFormData({ ...formData, subscription_end: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#407BA7]"
                       required
                     />
-                    <p className="text-xs text-gray-400 mt-1">
-                      Harga: Rp50.000 / bulan
-                    </p>
+                    <p className="text-xs text-gray-400 mt-1">Harga: Rp50.000 / bulan</p>
                   </div>
                 </div>
 
@@ -700,23 +632,11 @@ export default function InstancesPage() {
                 )}
 
                 <div className="flex gap-3 justify-end pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setShowModal(false)}
-                    className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
-                  >
+                  <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
                     Batal
                   </button>
-                  <button
-                    type="submit"
-                    disabled={actionLoading}
-                    className="px-4 py-2 bg-[#800016] text-white rounded-lg hover:bg-[#A0001C] transition disabled:opacity-50"
-                  >
-                    {actionLoading
-                      ? "Memproses..."
-                      : modalMode === "add"
-                        ? "Tambah"
-                        : "Simpan"}
+                  <button type="submit" disabled={actionLoading} className="px-4 py-2 bg-[#800016] text-white rounded-lg hover:bg-[#A0001C] transition disabled:opacity-50">
+                    {actionLoading ? "Memproses..." : modalMode === "add" ? "Tambah" : "Simpan"}
                   </button>
                 </div>
               </form>
@@ -747,9 +667,7 @@ export default function InstancesPage() {
                   <AlertCircle size={24} className="text-amber-600" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-800">
-                  {actionInstance.is_active
-                    ? "Nonaktifkan Instansi?"
-                    : "Aktifkan Instansi?"}
+                  {actionInstance.is_active ? "Nonaktifkan Instansi?" : "Aktifkan Instansi?"}
                 </h3>
               </div>
               <p className="text-gray-600 mb-6">
@@ -758,26 +676,17 @@ export default function InstancesPage() {
                   : `Instansi "${actionInstance.name}" akan diaktifkan kembali.`}
               </p>
               <div className="flex gap-3 justify-end">
-                <button
-                  onClick={() => setActionInstance(null)}
-                  className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
-                >
+                <button onClick={() => setActionInstance(null)} className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
                   Batal
                 </button>
                 <button
                   onClick={() => toggleInstanceStatus(actionInstance)}
                   disabled={actionLoading}
                   className={`px-4 py-2 rounded-lg text-white transition ${
-                    actionInstance.is_active
-                      ? "bg-red-600 hover:bg-red-700"
-                      : "bg-green-600 hover:bg-green-700"
+                    actionInstance.is_active ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"
                   } disabled:opacity-50`}
                 >
-                  {actionLoading
-                    ? "Memproses..."
-                    : actionInstance.is_active
-                      ? "Nonaktifkan"
-                      : "Aktifkan"}
+                  {actionLoading ? "Memproses..." : actionInstance.is_active ? "Nonaktifkan" : "Aktifkan"}
                 </button>
               </div>
             </motion.div>
@@ -806,30 +715,18 @@ export default function InstancesPage() {
                 <div className="p-2 rounded-full bg-red-100">
                   <Trash2 size={24} className="text-red-600" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-800">
-                  Hapus Instansi?
-                </h3>
+                <h3 className="text-lg font-semibold text-gray-800">Hapus Instansi?</h3>
               </div>
               <p className="text-gray-600 mb-6">
-                Apakah Anda yakin ingin menghapus instansi &quot;
-                {deleteInstance.name}&quot;?
+                Apakah Anda yakin ingin menghapus instansi &quot;{deleteInstance.name}&quot;?
                 <br />
-                <span className="text-red-500 text-sm">
-                  Tindakan ini tidak dapat dibatalkan!
-                </span>
+                <span className="text-red-500 text-sm">Tindakan ini tidak dapat dibatalkan!</span>
               </p>
               <div className="flex gap-3 justify-end">
-                <button
-                  onClick={() => setDeleteInstance(null)}
-                  className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
-                >
+                <button onClick={() => setDeleteInstance(null)} className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
                   Batal
                 </button>
-                <button
-                  onClick={handleDelete}
-                  disabled={actionLoading}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50"
-                >
+                <button onClick={handleDelete} disabled={actionLoading} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50">
                   {actionLoading ? "Memproses..." : "Hapus"}
                 </button>
               </div>
@@ -859,28 +756,17 @@ export default function InstancesPage() {
                 <div className="p-2 rounded-full bg-green-100">
                   <UserPlus size={24} className="text-green-600" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-800">
-                  Instansi Berhasil Dibuat!
-                </h3>
+                <h3 className="text-lg font-semibold text-gray-800">Instansi Berhasil Dibuat!</h3>
               </div>
               <p className="text-gray-600 mb-2">
-                Instansi <strong>{newInstanceName}</strong> berhasil
-                ditambahkan.
+                Instansi <strong>{newInstanceName}</strong> berhasil ditambahkan.
               </p>
-              <p className="text-gray-600 mb-6">
-                Apakah Anda ingin menambahkan admin untuk instansi ini sekarang?
-              </p>
+              <p className="text-gray-600 mb-6">Apakah Anda ingin menambahkan admin untuk instansi ini sekarang?</p>
               <div className="flex gap-3 justify-end">
-                <button
-                  onClick={() => setShowSuccessModal(false)}
-                  className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
-                >
+                <button onClick={() => setShowSuccessModal(false)} className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
                   Nanti Saja
                 </button>
-                <button
-                  onClick={handleAddAdmin}
-                  className="px-4 py-2 bg-[#800016] text-white rounded-lg hover:bg-[#A0001C] transition"
-                >
+                <button onClick={handleAddAdmin} className="px-4 py-2 bg-[#800016] text-white rounded-lg hover:bg-[#A0001C] transition">
                   Tambah Admin
                 </button>
               </div>

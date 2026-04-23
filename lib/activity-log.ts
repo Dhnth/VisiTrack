@@ -38,19 +38,3 @@ export async function createActivityLog(params: ActivityLogParams) {
     console.error('Failed to create activity log:', error)
   }
 }
-
-// export async function getCurrentUserFromSession(request: Request) {
-//   // Untuk NextAuth v5, ambil session dari header
-//   // Sementara ambil dari cookie atau header
-//   const { headers } = request
-//   const userId = headers.get('x-user-id')
-  
-//   if (!userId) return null
-  
-//   const user = await query(
-//     'SELECT id, instance_id, role FROM users WHERE id = ?',
-//     [parseInt(userId)]
-//   ) as { id: number; instance_id: number | null; role: string }[]
-  
-//   return user[0] || null
-// }

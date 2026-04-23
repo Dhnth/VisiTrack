@@ -10,7 +10,8 @@ interface InstanceRow {
   address: string;
   phone: string;
   subscription_status: string;
-  subscription_end: Date;
+  subscription_start: Date | null;
+  subscription_end: Date | null;
   is_active: number;
   total_users: number;
   total_guests: number;
@@ -40,6 +41,7 @@ export async function GET() {
         i.address,
         i.phone,
         i.subscription_status,
+        i.subscription_start,
         i.subscription_end,
         i.is_active,
         i.created_at,
@@ -59,12 +61,15 @@ export async function GET() {
       address: row.address,
       phone: row.phone,
       subscription_status: row.subscription_status,
+      subscription_start: row.subscription_start,
       subscription_end: row.subscription_end,
       is_active: row.is_active === 1,
       total_users: row.total_users,
       total_guests: row.total_guests,
       created_at: row.created_at,
-      days_left: Math.ceil((new Date(row.subscription_end).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)),
+      days_left: row.subscription_end 
+        ? Math.ceil((new Date(row.subscription_end).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+        : 0,
     }));
 
     return NextResponse.json({
@@ -85,9 +90,9 @@ export async function POST(request: Request) {
   try {
     const currentUser = await getCurrentUser();
     const body = await request.json();
-    const { name, slug, address, phone, subscription_end } = body;
+    const { name, slug, address, phone, subscription_start, subscription_end } = body;
 
-    if (!name || !slug || !address || !phone || !subscription_end) {
+    if (!name || !slug || !address || !phone || !subscription_start || !subscription_end) {
       return NextResponse.json(
         { success: false, error: 'Semua field wajib diisi' },
         { status: 400 }
@@ -106,7 +111,6 @@ export async function POST(request: Request) {
       );
     }
 
-    const subscription_start = new Date().toISOString().split('T')[0];
     const subscription_status = new Date(subscription_end) > new Date() ? 'active' : 'expired';
 
     const result = await query(
@@ -130,7 +134,7 @@ export async function POST(request: Request) {
         table_name: 'instances',
         record_id: result.insertId,
         description: `Menambahkan instansi baru: ${name} (${slug})`,
-        new_data: { name, slug, address, phone, subscription_end },
+        new_data: { name, slug, address, phone, subscription_start, subscription_end },
         ip_address: request.headers.get('x-forwarded-for') || undefined,
         user_agent: request.headers.get('user-agent') || undefined,
       });
@@ -155,7 +159,7 @@ export async function PUT(request: Request) {
   try {
     const currentUser = await getCurrentUser();
     const body = await request.json();
-    const { id, name, slug, address, phone, subscription_end, is_active } = body;
+    const { id, name, slug, address, phone, subscription_start, subscription_end, is_active } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -195,6 +199,7 @@ export async function PUT(request: Request) {
     if (slug) { updates.push('slug = ?'); values.push(slug); }
     if (address) { updates.push('address = ?'); values.push(address); }
     if (phone) { updates.push('phone = ?'); values.push(phone); }
+    if (subscription_start) { updates.push('subscription_start = ?'); values.push(subscription_start); }
     if (subscription_end) { updates.push('subscription_end = ?'); values.push(subscription_end); }
     if (subscription_status) { updates.push('subscription_status = ?'); values.push(subscription_status); }
     if (is_active !== undefined) { updates.push('is_active = ?'); values.push(is_active ? 1 : 0); }
@@ -215,6 +220,7 @@ export async function PUT(request: Request) {
       if (slug) newData.slug = slug;
       if (address) newData.address = address;
       if (phone) newData.phone = phone;
+      if (subscription_start) newData.subscription_start = subscription_start;
       if (subscription_end) newData.subscription_end = subscription_end;
       if (is_active !== undefined) newData.is_active = is_active;
 
