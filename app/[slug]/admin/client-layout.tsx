@@ -18,6 +18,7 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  ClipboardClock,
 } from "lucide-react";
 import Image from "next/image";
 import { signOut } from "next-auth/react";
@@ -27,8 +28,8 @@ const menuItems = [
   { name: "Karyawan", href: "/employees", icon: Users },
   { name: "Petugas", href: "/petugas", icon: UserCheck },
   { name: "PPID", href: "/ppid", icon: Shield },
+  { name: "History Kunjungan", href: "/history-kunjungan", icon: ClipboardClock },
   { name: "Pengaturan", href: "/pengaturan", icon: Settings },
-  { name: "Laporan", href: "/laporan", icon: FileText },
   { name: "Activity Logs", href: "/activity-logs", icon: Activity },
 ];
 
