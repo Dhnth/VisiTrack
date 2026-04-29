@@ -4,7 +4,7 @@ type ActivityAction = 'INSERT' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT'
 
 interface ActivityLogParams {
   instance_id: number | null
-  user_id: number
+  user_id: number | null
   action: ActivityAction
   table_name: string
   record_id: number | null
