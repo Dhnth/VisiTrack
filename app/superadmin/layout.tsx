@@ -17,7 +17,7 @@ export default async function SuperAdminLayout({
 
   // ❌ bukan super admin
   if (session.user?.role !== "super_admin") {
-    redirect("/") // atau bikin /forbidden
+    redirect("/forbidden") // atau bikin /forbidden
   }
   console.log("SESSION:", session)
 

@@ -94,6 +94,7 @@ export default function PetugasHistoryPage() {
     totalPages: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [enableCheckout, setEnableCheckout] = useState(true);
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -170,6 +171,9 @@ export default function PetugasHistoryPage() {
       const data = await res.json();
       if (data.success) {
         setGuests(data.guests || []);
+        setEnableCheckout(
+          data.enable_checkout !== undefined ? data.enable_checkout : true,
+        );
         setPagination({
           page: data.pagination?.page || 1,
           limit: data.pagination?.limit || 10,
@@ -549,36 +553,38 @@ export default function PetugasHistoryPage() {
                       }
                     />
                   </div>
-                  <div className="md:col-span-2">
-                    <label
-                      className="block text-sm font-medium mb-1"
-                      style={{ color: colors.secondaryDarkest }}
-                    >
-                      Check Out
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={editFormData.check_out_at}
-                      onChange={(e) =>
-                        setEditFormData({
-                          ...editFormData,
-                          check_out_at: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2"
-                      style={{
-                        border: `1px solid ${colors.secondary}20`,
-                        color: colors.secondaryDarkest,
-                        backgroundColor: colors.white,
-                      }}
-                      onFocus={(e) =>
-                        (e.currentTarget.style.borderColor = colors.secondary)
-                      }
-                      onBlur={(e) =>
-                        (e.currentTarget.style.borderColor = `${colors.secondary}20`)
-                      }
-                    />
-                  </div>
+                  {enableCheckout && (
+                    <div className="md:col-span-2">
+                      <label
+                        className="block text-sm font-medium mb-1"
+                        style={{ color: colors.secondaryDarkest }}
+                      >
+                        Check Out
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={editFormData.check_out_at}
+                        onChange={(e) =>
+                          setEditFormData({
+                            ...editFormData,
+                            check_out_at: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2"
+                        style={{
+                          border: `1px solid ${colors.secondary}20`,
+                          color: colors.secondaryDarkest,
+                          backgroundColor: colors.white,
+                        }}
+                        onFocus={(e) =>
+                          (e.currentTarget.style.borderColor = colors.secondary)
+                        }
+                        onBlur={(e) =>
+                          (e.currentTarget.style.borderColor = `${colors.secondary}20`)
+                        }
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex gap-3 justify-end pt-4">
@@ -843,12 +849,21 @@ export default function PetugasHistoryPage() {
                     }}
                   >
                     <tr>
+                      {/* Table header - conditional untuk Check Out */}
                       <th
                         className="px-4 py-3 text-left text-xs font-medium uppercase"
                         style={{ color: colors.secondaryDark }}
                       >
-                        Waktu
+                        Check In
                       </th>
+                      {enableCheckout && (
+                        <th
+                          className="px-4 py-3 text-left text-xs font-medium uppercase"
+                          style={{ color: colors.secondaryDark }}
+                        >
+                          Check Out
+                        </th>
+                      )}
                       <th
                         className="px-4 py-3 text-left text-xs font-medium uppercase"
                         style={{ color: colors.secondaryDark }}
@@ -891,12 +906,23 @@ export default function PetugasHistoryPage() {
                         className="hover:bg-gray-50 transition"
                         style={{ backgroundColor: colors.white }}
                       >
+                        {/* Table body - conditional untuk Check Out */}
                         <td
                           className="px-4 py-3 text-sm"
                           style={{ color: colors.secondaryDark }}
                         >
-                          {formatTimeWIB(guest.created_at)}
+                          {formatTimeWIB(guest.check_in_at)}
                         </td>
+                        {enableCheckout && (
+                          <td
+                            className="px-4 py-3 text-sm"
+                            style={{ color: colors.secondaryDark }}
+                          >
+                            {guest.check_out_at
+                              ? formatTimeWIB(guest.check_out_at)
+                              : "-"}
+                          </td>
+                        )}
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <div

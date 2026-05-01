@@ -2,96 +2,136 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { auth } from '@/lib/auth';
 import { createActivityLog } from '@/lib/activity-log';
-import { writeFile, mkdir } from 'fs/promises';
+import { writeFile, mkdir, unlink } from 'fs/promises';
 import path from 'path';
 import { existsSync } from 'fs';
 
-async function getCurrentUser() {
+interface User {
+  id: number;
+  instance_id: number;
+  role: string;
+}
+
+interface Instance {
+  name: string;
+  slug: string;
+  address: string;
+  phone: string;
+  logo: string | null;
+}
+
+interface Settings {
+  qr_mode: string;
+  token_interval: number | null;
+  enable_checkout: number;
+  auto_checkout_time: string | null;
+  default_password: string;
+}
+
+async function getCurrentUser(): Promise<User | null> {
   const session = await auth();
   if (!session?.user?.email) return null;
   
   const users = await query(
     'SELECT id, instance_id, role FROM users WHERE email = ?',
     [session.user.email]
-  ) as { id: number; instance_id: number; role: string }[];
+  ) as User[];
   
   return users[0] || null;
 }
 
 // GET - Ambil semua pengaturan instansi
 export async function GET() {
-  const currentUser = await getCurrentUser();
-  if (!currentUser || currentUser.role !== 'admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
-  const instanceId = currentUser.instance_id;
-
-  // Ambil data instansi
-  const instances = await query(
-    'SELECT name, slug, address, phone, logo FROM instances WHERE id = ?',
-    [instanceId]
-  ) as { name: string; slug: string; address: string; phone: string; logo: string | null }[];
-
-  const instance = instances[0];
-
-  if (!instance) {
-    return NextResponse.json({ error: 'Instance not found' }, { status: 404 });
-  }
-
-  // Ambil settings (QR mode)
-  const settings = await query(
-    'SELECT qr_mode, token_interval FROM settings WHERE instance_id = ?',
-    [instanceId]
-  ) as { qr_mode: string; token_interval: number | null }[];
-
-  const setting = settings[0] || { qr_mode: 'static', token_interval: null };
-
-  // Ambil default password untuk import
-  const importSettings = await query(
-    "SELECT setting_value FROM settings WHERE instance_id = ? AND setting_key = 'import_default_password'",
-    [instanceId]
-  ) as { setting_value: string }[];
-
-  const defaultPassword = importSettings[0]?.setting_value || 'password123';
-
-  return NextResponse.json({
-    success: true,
-    instance: {
-      name: instance.name,
-      slug: instance.slug,
-      address: instance.address,
-      phone: instance.phone,
-      logo: instance.logo,
-    },
-    qrSettings: {
-      qr_mode: setting.qr_mode,
-      token_interval: setting.token_interval,
-    },
-    importSettings: {
-      defaultPassword,
-    },
-  });
-}
-
-// PUT - Update profile instansi
-export async function PUT(request: Request) {
-  const currentUser = await getCurrentUser();
-  if (!currentUser || currentUser.role !== 'admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
   try {
-    const body = await request.json();
-    const { name, address, phone } = body;
+    const currentUser = await getCurrentUser();
+    if (!currentUser || currentUser.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const instanceId = currentUser.instance_id;
 
+    // Ambil data instansi
+    const instances = await query(
+      'SELECT name, slug, address, phone, logo FROM instances WHERE id = ?',
+      [instanceId]
+    ) as Instance[];
+
+    const instance = instances[0];
+
+    if (!instance) {
+      return NextResponse.json({ error: 'Instance not found' }, { status: 404 });
+    }
+
+    // Ambil semua settings dalam satu baris
+    const settings = await query(
+      'SELECT qr_mode, token_interval, enable_checkout, auto_checkout_time, default_password FROM settings WHERE instance_id = ? LIMIT 1',
+      [instanceId]
+    ) as Settings[];
+
+    const setting = settings[0] || { 
+      qr_mode: 'static', 
+      token_interval: null,
+      enable_checkout: 1,
+      auto_checkout_time: null,
+      default_password: 'password123'
+    };
+
+    return NextResponse.json({
+      success: true,
+      instance: {
+        name: instance.name,
+        slug: instance.slug,
+        address: instance.address,
+        phone: instance.phone,
+        logo: instance.logo,
+      },
+      qrSettings: {
+        qr_mode: setting.qr_mode,
+        token_interval: setting.token_interval,
+      },
+      importSettings: {
+        defaultPassword: setting.default_password,
+      },
+      checkoutSettings: {
+        enable_checkout: setting.enable_checkout === 1,
+        auto_checkout_time: setting.auto_checkout_time,
+      },
+    });
+  } catch (error) {
+    console.error('GET settings error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+// PUT - Update profile instansi dan checkout settings
+export async function PUT(request: Request) {
+  try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser || currentUser.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const { name, address, phone, enable_checkout, auto_checkout_time } = body;
+    const instanceId = currentUser.instance_id;
+    let hasUpdate = false;
+
+    // Update profil instansi
     const updates: string[] = [];
     const values: (string | number)[] = [];
 
-    if (name) { updates.push('name = ?'); values.push(name); }
-    if (address) { updates.push('address = ?'); values.push(address); }
-    if (phone) { updates.push('phone = ?'); values.push(phone); }
+    if (name !== undefined) { 
+      updates.push('name = ?'); 
+      values.push(name); 
+    }
+    if (address !== undefined) { 
+      updates.push('address = ?'); 
+      values.push(address); 
+    }
+    if (phone !== undefined) { 
+      updates.push('phone = ?'); 
+      values.push(phone); 
+    }
 
     if (updates.length > 0) {
       updates.push('updated_at = NOW()');
@@ -113,29 +153,67 @@ export async function PUT(request: Request) {
         ip_address: request.headers.get('x-forwarded-for')?.split(',')[0] || undefined,
         user_agent: request.headers.get('user-agent') || undefined,
       });
+      hasUpdate = true;
+    }
+
+    // Update settings (QR, checkout, dll) jika ada
+    if (enable_checkout !== undefined || auto_checkout_time !== undefined) {
+      const existing = await query(
+        'SELECT id FROM settings WHERE instance_id = ?',
+        [instanceId]
+      ) as { id: number }[];
+
+      if (existing.length > 0) {
+        const updateFields: string[] = [];
+        const updateValues: (string | number | null)[] = [];
+
+        if (enable_checkout !== undefined) {
+          updateFields.push('enable_checkout = ?');
+          updateValues.push(enable_checkout ? 1 : 0);
+        }
+        if (auto_checkout_time !== undefined) {
+          updateFields.push('auto_checkout_time = ?');
+          updateValues.push(auto_checkout_time || null);
+        }
+        updateFields.push('updated_at = NOW()');
+        updateValues.push(instanceId);
+
+        await query(
+          `UPDATE settings SET ${updateFields.join(', ')} WHERE instance_id = ?`,
+          updateValues
+        );
+      } else {
+        await query(
+          `INSERT INTO settings (instance_id, qr_mode, token_interval, enable_checkout, auto_checkout_time, default_password, created_at, updated_at) 
+           VALUES (?, 'static', NULL, ?, ?, 'password123', NOW(), NOW())`,
+          [instanceId, enable_checkout !== undefined ? (enable_checkout ? 1 : 0) : 1, auto_checkout_time || null]
+        );
+      }
+      hasUpdate = true;
+    }
+
+    if (!hasUpdate) {
+      return NextResponse.json({ error: 'No data to update' }, { status: 400 });
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Profil instansi berhasil diupdate',
+      message: 'Pengaturan berhasil diupdate',
     });
   } catch (error) {
-    console.error('Update profile error:', error);
-    return NextResponse.json(
-      { error: 'Gagal mengupdate profil instansi' },
-      { status: 500 }
-    );
+    console.error('PUT settings error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
 // PATCH - Update QR settings
 export async function PATCH(request: Request) {
-  const currentUser = await getCurrentUser();
-  if (!currentUser || currentUser.role !== 'admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
   try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser || currentUser.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const body = await request.json();
     const { qr_mode, token_interval } = body;
     const instanceId = currentUser.instance_id;
@@ -152,7 +230,8 @@ export async function PATCH(request: Request) {
       );
     } else {
       await query(
-        'INSERT INTO settings (instance_id, qr_mode, token_interval, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())',
+        `INSERT INTO settings (instance_id, qr_mode, token_interval, enable_checkout, auto_checkout_time, default_password, created_at, updated_at) 
+         VALUES (?, ?, ?, 1, NULL, 'password123', NOW(), NOW())`,
         [instanceId, qr_mode, token_interval || null]
       );
     }
@@ -174,22 +253,19 @@ export async function PATCH(request: Request) {
       message: 'Pengaturan QR berhasil diupdate',
     });
   } catch (error) {
-    console.error('Update QR settings error:', error);
-    return NextResponse.json(
-      { error: 'Gagal mengupdate pengaturan QR' },
-      { status: 500 }
-    );
+    console.error('PATCH settings error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
 // POST - Update default password untuk import
 export async function POST(request: Request) {
-  const currentUser = await getCurrentUser();
-  if (!currentUser || currentUser.role !== 'admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
   try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser || currentUser.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const body = await request.json();
     const { defaultPassword } = body;
     const instanceId = currentUser.instance_id;
@@ -202,18 +278,19 @@ export async function POST(request: Request) {
     }
 
     const existing = await query(
-      "SELECT id FROM settings WHERE instance_id = ? AND setting_key = 'import_default_password'",
+      'SELECT id FROM settings WHERE instance_id = ?',
       [instanceId]
     ) as { id: number }[];
 
     if (existing.length > 0) {
       await query(
-        "UPDATE settings SET setting_value = ?, updated_at = NOW() WHERE instance_id = ? AND setting_key = 'import_default_password'",
+        'UPDATE settings SET default_password = ?, updated_at = NOW() WHERE instance_id = ?',
         [defaultPassword, instanceId]
       );
     } else {
       await query(
-        "INSERT INTO settings (instance_id, setting_key, setting_value, created_at, updated_at) VALUES (?, 'import_default_password', ?, NOW(), NOW())",
+        `INSERT INTO settings (instance_id, qr_mode, token_interval, enable_checkout, auto_checkout_time, default_password, created_at, updated_at) 
+         VALUES (?, 'static', NULL, 1, NULL, ?, NOW(), NOW())`,
         [instanceId, defaultPassword]
       );
     }
@@ -224,7 +301,7 @@ export async function POST(request: Request) {
       action: 'UPDATE',
       table_name: 'settings',
       record_id: instanceId,
-      description: `Mengupdate default password import menjadi: ${defaultPassword}`,
+      description: 'Mengupdate default password import',
       new_data: { defaultPassword },
       ip_address: request.headers.get('x-forwarded-for')?.split(',')[0] || undefined,
       user_agent: request.headers.get('user-agent') || undefined,
@@ -235,97 +312,7 @@ export async function POST(request: Request) {
       message: 'Default password import berhasil diupdate',
     });
   } catch (error) {
-    console.error('Update default password error:', error);
-    return NextResponse.json(
-      { error: 'Gagal mengupdate default password' },
-      { status: 500 }
-    );
-  }
-}
-
-// POST - Upload logo (dipisah ke endpoint terpisah)
-export async function POST_LOGO(request: Request) {
-  const currentUser = await getCurrentUser();
-  if (!currentUser || currentUser.role !== 'admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
-  try {
-    const formData = await request.formData();
-    const file = formData.get('file') as File;
-    const instanceId = currentUser.instance_id;
-
-    // Ambil slug instansi
-    const instances = await query(
-      'SELECT slug FROM instances WHERE id = ?',
-      [instanceId]
-    ) as { slug: string }[];
-
-    const slug = instances[0]?.slug;
-    if (!slug) {
-      return NextResponse.json({ error: 'Instance not found' }, { status: 404 });
-    }
-
-    if (!file) {
-      return NextResponse.json({ error: 'File tidak ditemukan' }, { status: 400 });
-    }
-
-    const allowedTypes = ['image/png', 'image/jpeg', 'image/svg+xml'];
-    if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json(
-        { error: 'Format file harus PNG, JPG, atau SVG' },
-        { status: 400 }
-      );
-    }
-
-    if (file.size > 1024 * 1024) {
-      return NextResponse.json(
-        { error: 'Ukuran file maksimal 1MB' },
-        { status: 400 }
-      );
-    }
-
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const ext = path.extname(file.name);
-    const fileName = `logo${ext}`;
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', slug);
-    const filePath = path.join(uploadDir, fileName);
-
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
-    }
-
-    await writeFile(filePath, buffer);
-    const logoUrl = `/uploads/${slug}/logo${ext}`;
-
-    await query(
-      'UPDATE instances SET logo = ?, updated_at = NOW() WHERE id = ?',
-      [logoUrl, instanceId]
-    );
-
-    await createActivityLog({
-      instance_id: instanceId,
-      user_id: currentUser.id,
-      action: 'UPDATE',
-      table_name: 'instances',
-      record_id: instanceId,
-      description: 'Mengupdate logo instansi',
-      new_data: { logo: logoUrl },
-      ip_address: request.headers.get('x-forwarded-for')?.split(',')[0] || undefined,
-      user_agent: request.headers.get('user-agent') || undefined,
-    });
-
-    return NextResponse.json({
-      success: true,
-      message: 'Logo berhasil diupload',
-      logoUrl,
-    });
-  } catch (error) {
-    console.error('Upload logo error:', error);
-    return NextResponse.json(
-      { error: 'Gagal upload logo' },
-      { status: 500 }
-    );
+    console.error('POST settings error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -1,14 +1,32 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-  Settings, QrCode, Building2, Upload, Save, KeyRound, AlertCircle, CheckCircle, RefreshCw,
-  HelpCircle, X, Clock, Shield, FileSpreadsheet
-} from 'lucide-react';
-import Image from 'next/image';
-
+  Settings,
+  QrCode,
+  Building2,
+  Upload,
+  Save,
+  KeyRound,
+  AlertCircle,
+  CheckCircle,
+  RefreshCw,
+  HelpCircle,
+  X,
+  Clock,
+  Shield,
+  FileSpreadsheet,
+  LogOut,
+} from "lucide-react";
+import Image from "next/image";
+const colors = {
+  secondary: "#407BA7",
+  secondaryDark: "#004E89",
+  secondaryDarkest: "#00043A",
+  white: "#FFFFFF",
+};
 interface InstanceProfile {
   name: string;
   slug: string;
@@ -18,7 +36,7 @@ interface InstanceProfile {
 }
 
 interface QrSettings {
-  qr_mode: 'static' | 'dynamic';
+  qr_mode: "static" | "dynamic";
   token_interval: number | null;
 }
 
@@ -26,8 +44,19 @@ interface ImportSettings {
   defaultPassword: string;
 }
 
+interface CheckoutSettings {
+  enable_checkout: boolean;
+  auto_checkout_time: string | null;
+}
+
 // Modal Info Component
-function InfoModal({ isOpen, onClose, title, content, icon }: {
+function InfoModal({
+  isOpen,
+  onClose,
+  title,
+  content,
+  icon,
+}: {
   isOpen: boolean;
   onClose: () => void;
   title: string;
@@ -53,16 +82,19 @@ function InfoModal({ isOpen, onClose, title, content, icon }: {
           >
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-blue-100">
-                  {icon}
-                </div>
+                <div className="p-2 rounded-full bg-blue-100">{icon}</div>
                 <h3 className="text-xl font-semibold text-gray-800">{title}</h3>
               </div>
-              <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100">
+              <button
+                onClick={onClose}
+                className="p-1 rounded-lg hover:bg-gray-100"
+              >
                 <X size={20} />
               </button>
             </div>
-            <p className="text-gray-600 leading-relaxed">{content}</p>
+            <p className="text-gray-600 leading-relaxed whitespace-pre-line">
+              {content}
+            </p>
             <div className="flex justify-end mt-6">
               <button
                 onClick={onClose}
@@ -86,20 +118,27 @@ export default function PengaturanPage() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [profile, setProfile] = useState<InstanceProfile>({
-    name: '',
-    slug: '',
-    address: '',
-    phone: '',
+    name: "",
+    slug: "",
+    address: "",
+    phone: "",
     logo: null,
   });
   const [qrSettings, setQrSettings] = useState<QrSettings>({
-    qr_mode: 'static',
+    qr_mode: "static",
     token_interval: null,
   });
   const [importSettings, setImportSettings] = useState<ImportSettings>({
-    defaultPassword: 'password123',
+    defaultPassword: "password123",
   });
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [checkoutSettings, setCheckoutSettings] = useState<CheckoutSettings>({
+    enable_checkout: true,
+    auto_checkout_time: null,
+  });
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
 
   // Modal states
   const [infoModal, setInfoModal] = useState<{
@@ -109,8 +148,8 @@ export default function PengaturanPage() {
     icon: React.ReactNode;
   }>({
     isOpen: false,
-    title: '',
-    content: '',
+    title: "",
+    content: "",
     icon: null,
   });
 
@@ -118,12 +157,15 @@ export default function PengaturanPage() {
   useEffect(() => {
     const fetchSettings = async () => {
       setLoading(true);
-      const res = await fetch('/api/admin/settings');
+      const res = await fetch("/api/admin/settings");
       const data = await res.json();
       if (data.success) {
         setProfile(data.instance);
         setQrSettings(data.qrSettings);
         setImportSettings(data.importSettings);
+        if (data.checkoutSettings) {
+          setCheckoutSettings(data.checkoutSettings);
+        }
       }
       setLoading(false);
     };
@@ -132,9 +174,9 @@ export default function PengaturanPage() {
 
   const saveProfile = async () => {
     setSaving(true);
-    const res = await fetch('/api/admin/settings', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+    const res = await fetch("/api/admin/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: profile.name,
         address: profile.address,
@@ -143,10 +185,10 @@ export default function PengaturanPage() {
     });
     const data = await res.json();
     if (data.success) {
-      setMessage({ type: 'success', text: data.message });
+      setMessage({ type: "success", text: data.message });
       setTimeout(() => setMessage(null), 3000);
     } else {
-      setMessage({ type: 'error', text: data.error });
+      setMessage({ type: "error", text: data.error });
       setTimeout(() => setMessage(null), 3000);
     }
     setSaving(false);
@@ -154,9 +196,9 @@ export default function PengaturanPage() {
 
   const saveQrSettings = async () => {
     setSaving(true);
-    const res = await fetch('/api/admin/settings', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+    const res = await fetch("/api/admin/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         qr_mode: qrSettings.qr_mode,
         token_interval: qrSettings.token_interval,
@@ -164,10 +206,10 @@ export default function PengaturanPage() {
     });
     const data = await res.json();
     if (data.success) {
-      setMessage({ type: 'success', text: data.message });
+      setMessage({ type: "success", text: data.message });
       setTimeout(() => setMessage(null), 3000);
     } else {
-      setMessage({ type: 'error', text: data.error });
+      setMessage({ type: "error", text: data.error });
       setTimeout(() => setMessage(null), 3000);
     }
     setSaving(false);
@@ -175,19 +217,40 @@ export default function PengaturanPage() {
 
   const saveImportSettings = async () => {
     setSaving(true);
-    const res = await fetch('/api/admin/settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const res = await fetch("/api/admin/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         defaultPassword: importSettings.defaultPassword,
       }),
     });
     const data = await res.json();
     if (data.success) {
-      setMessage({ type: 'success', text: data.message });
+      setMessage({ type: "success", text: data.message });
       setTimeout(() => setMessage(null), 3000);
     } else {
-      setMessage({ type: 'error', text: data.error });
+      setMessage({ type: "error", text: data.error });
+      setTimeout(() => setMessage(null), 3000);
+    }
+    setSaving(false);
+  };
+
+  const saveCheckoutSettings = async () => {
+    setSaving(true);
+    const res = await fetch("/api/admin/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        enable_checkout: checkoutSettings.enable_checkout,
+        auto_checkout_time: checkoutSettings.auto_checkout_time,
+      }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      setMessage({ type: "success", text: data.message });
+      setTimeout(() => setMessage(null), 3000);
+    } else {
+      setMessage({ type: "error", text: data.error });
       setTimeout(() => setMessage(null), 3000);
     }
     setSaving(false);
@@ -196,19 +259,19 @@ export default function PengaturanPage() {
   const uploadLogo = async (file: File) => {
     setUploading(true);
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append("file", file);
 
-    const res = await fetch('/api/admin/settings/logo', {
-      method: 'POST',
+    const res = await fetch("/api/admin/settings/logo", {
+      method: "POST",
       body: formData,
     });
     const data = await res.json();
     if (data.success) {
       setProfile({ ...profile, logo: data.logoUrl });
-      setMessage({ type: 'success', text: data.message });
+      setMessage({ type: "success", text: data.message });
       setTimeout(() => setMessage(null), 3000);
     } else {
-      setMessage({ type: 'error', text: data.error });
+      setMessage({ type: "error", text: data.error });
       setTimeout(() => setMessage(null), 3000);
     }
     setUploading(false);
@@ -225,8 +288,9 @@ export default function PengaturanPage() {
   const showQrInfo = () => {
     setInfoModal({
       isOpen: true,
-      title: 'Pengaturan QR Code',
-      content: 'STATIC: QR Code tetap berlaku selamanya. Cocok untuk tempat yang jarang berubah.\n\nDYNAMIC: QR Code akan expired setelah waktu tertentu dan otomatis regenerate. Cocok untuk keamanan lebih tinggi.',
+      title: "Pengaturan QR Code",
+      content:
+        "STATIC: QR Code tetap berlaku selamanya. Cocok untuk tempat yang jarang berubah.\n\nDYNAMIC: QR Code akan expired setelah waktu tertentu dan otomatis regenerate. Cocok untuk keamanan lebih tinggi.",
       icon: <QrCode size={24} className="text-blue-600" />,
     });
   };
@@ -234,8 +298,9 @@ export default function PengaturanPage() {
   const showProfileInfo = () => {
     setInfoModal({
       isOpen: true,
-      title: 'Profil Instansi',
-      content: 'Informasi dasar instansi Anda. Nama akan muncul di dashboard, alamat dan telepon untuk kontak. Logo akan ditampilkan di sidebar dan halaman login instansi.',
+      title: "Profil Instansi",
+      content:
+        "Informasi dasar instansi Anda. Nama akan muncul di dashboard, alamat dan telepon untuk kontak. Logo akan ditampilkan di sidebar dan halaman login instansi.",
       icon: <Building2 size={24} className="text-blue-600" />,
     });
   };
@@ -243,9 +308,20 @@ export default function PengaturanPage() {
   const showImportInfo = () => {
     setInfoModal({
       isOpen: true,
-      title: 'Pengaturan Import Data',
-      content: 'Password default ini akan digunakan untuk semua petugas dan PPID yang diimport melalui file Excel. Pastikan mengubah password setelah login pertama atau beritahu pengguna untuk segera mengganti password.',
+      title: "Pengaturan Import Data",
+      content:
+        "Password default ini akan digunakan untuk semua petugas dan PPID yang diimport melalui file Excel. Pastikan mengubah password setelah login pertama atau beritahu pengguna untuk segera mengganti password.",
       icon: <FileSpreadsheet size={24} className="text-blue-600" />,
+    });
+  };
+
+  const showCheckoutInfo = () => {
+    setInfoModal({
+      isOpen: true,
+      title: "Pengaturan Checkout",
+      content:
+        "AKTIFKAN CHECKOUT: Petugas harus mencatat waktu keluar tamu (tombol pulang).\n\nNONAKTIFKAN CHECKOUT: Kunjungan otomatis selesai tanpa checkout. Waktu checkout akan diisi otomatis sesuai jam yang ditentukan.",
+      icon: <LogOut size={24} className="text-blue-600" />,
     });
   };
 
@@ -278,10 +354,16 @@ export default function PengaturanPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -50 }}
             className={`fixed top-20 right-4 z-50 px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 ${
-              message.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+              message.type === "success"
+                ? "bg-green-500 text-white"
+                : "bg-red-500 text-white"
             }`}
           >
-            {message.type === 'success' ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
+            {message.type === "success" ? (
+              <CheckCircle size={18} />
+            ) : (
+              <AlertCircle size={18} />
+            )}
             <span>{message.text}</span>
           </motion.div>
         )}
@@ -337,46 +419,62 @@ export default function PengaturanPage() {
               />
               <div className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
                 <Upload size={16} />
-                <span>{uploading ? 'Uploading...' : 'Upload Logo'}</span>
+                <span>{uploading ? "Uploading..." : "Upload Logo"}</span>
               </div>
             </label>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nama Instansi</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Nama Instansi
+              </label>
               <input
                 type="text"
                 value={profile.name}
-                onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                onChange={(e) =>
+                  setProfile({ ...profile, name: e.target.value })
+                }
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#407BA7]"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Slug (URL)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Slug (URL)
+              </label>
               <input
                 type="text"
                 value={profile.slug}
                 disabled
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500"
               />
-              <p className="text-xs text-gray-400 mt-1">Slug tidak dapat diubah</p>
+              <p className="text-xs text-gray-400 mt-1">
+                Slug tidak dapat diubah
+              </p>
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Alamat</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Alamat
+              </label>
               <textarea
                 value={profile.address}
-                onChange={(e) => setProfile({ ...profile, address: e.target.value })}
+                onChange={(e) =>
+                  setProfile({ ...profile, address: e.target.value })
+                }
                 rows={2}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#407BA7]"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Telepon</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Telepon
+              </label>
               <input
                 type="tel"
                 value={profile.phone}
-                onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                onChange={(e) =>
+                  setProfile({ ...profile, phone: e.target.value })
+                }
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#407BA7]"
               />
             </div>
@@ -388,7 +486,11 @@ export default function PengaturanPage() {
               disabled={saving}
               className="flex items-center gap-2 px-4 py-2 bg-[#800016] text-white rounded-lg hover:bg-[#A0001C] transition disabled:opacity-50"
             >
-              {saving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
+              {saving ? (
+                <RefreshCw size={16} className="animate-spin" />
+              ) : (
+                <Save size={16} />
+              )}
               Simpan Profil
             </button>
           </div>
@@ -414,28 +516,48 @@ export default function PengaturanPage() {
         <div className="p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Mode QR Code</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Mode QR Code
+              </label>
               <select
                 value={qrSettings.qr_mode}
-                onChange={(e) => setQrSettings({ ...qrSettings, qr_mode: e.target.value as 'static' | 'dynamic' })}
+                onChange={(e) =>
+                  setQrSettings({
+                    ...qrSettings,
+                    qr_mode: e.target.value as "static" | "dynamic",
+                  })
+                }
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#407BA7]"
               >
-                <option value="static">Static (Token tidak pernah expired)</option>
-                <option value="dynamic">Dynamic (Token expired otomatis)</option>
+                <option value="static">
+                  Static (Token tidak pernah expired)
+                </option>
+                <option value="dynamic">
+                  Dynamic (Token expired otomatis)
+                </option>
               </select>
             </div>
-            {qrSettings.qr_mode === 'dynamic' && (
+            {qrSettings.qr_mode === "dynamic" && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Interval Kadaluwarsa (menit)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Interval Kadaluwarsa (menit)
+                </label>
                 <input
                   type="number"
-                  value={qrSettings.token_interval || ''}
-                  onChange={(e) => setQrSettings({ ...qrSettings, token_interval: parseInt(e.target.value) || 30 })}
+                  value={qrSettings.token_interval || ""}
+                  onChange={(e) =>
+                    setQrSettings({
+                      ...qrSettings,
+                      token_interval: parseInt(e.target.value) || 30,
+                    })
+                  }
                   min={1}
                   max={1440}
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#407BA7]"
                 />
-                <p className="text-xs text-gray-400 mt-1">Token akan expired setelah X menit</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Token akan expired setelah X menit
+                </p>
               </div>
             )}
           </div>
@@ -446,7 +568,11 @@ export default function PengaturanPage() {
               disabled={saving}
               className="flex items-center gap-2 px-4 py-2 bg-[#800016] text-white rounded-lg hover:bg-[#A0001C] transition disabled:opacity-50"
             >
-              {saving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
+              {saving ? (
+                <RefreshCw size={16} className="animate-spin" />
+              ) : (
+                <Save size={16} />
+              )}
               Simpan QR Settings
             </button>
           </div>
@@ -471,12 +597,16 @@ export default function PengaturanPage() {
         </div>
         <div className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Default Password untuk Import</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Default Password untuk Import
+            </label>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={importSettings.defaultPassword}
-                onChange={(e) => setImportSettings({ defaultPassword: e.target.value })}
+                onChange={(e) =>
+                  setImportSettings({ defaultPassword: e.target.value })
+                }
                 className="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#407BA7]"
               />
             </div>
@@ -497,12 +627,108 @@ export default function PengaturanPage() {
               disabled={saving}
               className="flex items-center gap-2 px-4 py-2 bg-[#800016] text-white rounded-lg hover:bg-[#A0001C] transition disabled:opacity-50"
             >
-              {saving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
+              {saving ? (
+                <RefreshCw size={16} className="animate-spin" />
+              ) : (
+                <Save size={16} />
+              )}
               Simpan Password
             </button>
           </div>
         </div>
       </div>
+
+      {/* 4. Pengaturan Checkout */}
+<div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+  <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
+    <div className="flex items-center justify-between">
+      <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+        <LogOut size={18} className="text-[#800016]" />
+        Pengaturan Checkout
+      </h2>
+      <button
+        onClick={showCheckoutInfo}
+        className="text-gray-400 hover:text-[#407BA7] transition"
+        title="Informasi"
+      >
+        <HelpCircle size={18} />
+      </button>
+    </div>
+  </div>
+  <div className="p-6">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-800">
+          Aktifkan Checkout
+        </p>
+        <p className="text-xs text-gray-400 mt-0.5">
+          Jika aktif, petugas harus mencatat waktu keluar tamu (tombol pulang).
+          <br />
+          Jika tidak aktif, kunjungan otomatis selesai tanpa checkout.
+        </p>
+      </div>
+      <input
+        type="checkbox"
+        checked={checkoutSettings.enable_checkout}
+        onChange={(e) =>
+          setCheckoutSettings({
+            ...checkoutSettings,
+            enable_checkout: e.target.checked,
+          })
+        }
+        className="w-5 h-5 rounded border-gray-300 focus:ring-2 focus:ring-[#407BA7] focus:ring-offset-2"
+        style={{
+          accentColor: "#407BA7",
+        }}
+      />
+    </div>
+
+    {checkoutSettings.enable_checkout && (
+      <div className="mt-5 p-4 rounded-xl bg-[#407BA7]/5 border border-[#407BA7]/20">
+        <label className="block text-sm font-medium text-gray-800 mb-2">
+          Waktu Otomatis Checkout
+        </label>
+        <div className="relative">
+          <Clock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+          <input
+            type="time"
+            value={checkoutSettings.auto_checkout_time || ""}
+            onChange={(e) =>
+              setCheckoutSettings({
+                ...checkoutSettings,
+                auto_checkout_time: e.target.value,
+              })
+            }
+            className="w-full pl-9 pr-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#407BA7] border border-gray-200"
+          />
+        </div>
+        <p className="text-xs text-gray-400 mt-2">
+          Kunjungan akan otomatis checkout pada jam ini setiap hari
+        </p>
+      </div>
+    )}
+
+    <div className="flex justify-end pt-5 mt-2">
+      <button
+        onClick={saveCheckoutSettings}
+        disabled={saving}
+        className="flex items-center gap-2 px-6 py-2.5 rounded-xl transition-all duration-200 font-medium shadow-sm bg-[#800016] text-white hover:bg-[#A0001C] disabled:opacity-50"
+      >
+        {saving ? (
+          <>
+            <RefreshCw size={16} className="animate-spin" />
+            Menyimpan...
+          </>
+        ) : (
+          <>
+            <Save size={16} />
+            Simpan Pengaturan
+          </>
+        )}
+      </button>
+    </div>
+  </div>
+</div>
     </div>
   );
 }

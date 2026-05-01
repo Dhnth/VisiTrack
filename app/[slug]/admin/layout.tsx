@@ -18,6 +18,10 @@ export default async function AdminLayout({ children, params }: Props) {
   }
   
   const userRole = session.user.role ?? null
+  if (userRole !== 'admin') {
+    redirect("/forbidden")
+  }
+
 
   const email = session.user.email
   const { slug } = await params

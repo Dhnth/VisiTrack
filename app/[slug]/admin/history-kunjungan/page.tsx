@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   History, Search, Filter, X, ChevronLeft, ChevronRight,
   RefreshCw, User, Briefcase, Eye, Download, Edit, Trash2,
-  AlertCircle, CheckCircle, Users, Save,  Building,
+  AlertCircle, CheckCircle, Users, Save, Building,
   FileText, Clock, Upload, Camera
 } from 'lucide-react';
 import Image from 'next/image';
@@ -89,6 +89,7 @@ export default function HistoryPage() {
     totalPages: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [enableCheckout, setEnableCheckout] = useState(true);
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -152,6 +153,18 @@ export default function HistoryPage() {
     });
   };
 
+  const formatTimeWIB = (dateString: string | null) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    const wib = new Date(date.getTime() + 7 * 60 * 60 * 1000);
+    return wib.toLocaleTimeString('id-ID', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+  };
+
   // Live search with debounce
   useEffect(() => {
     if (debounceTimeout.current) {
@@ -187,6 +200,9 @@ export default function HistoryPage() {
       if (data.success) {
         setGuests(data.guests);
         setPagination(data.pagination);
+        if (data.enable_checkout !== undefined) {
+          setEnableCheckout(data.enable_checkout);
+        }
       }
       setLoading(false);
     };
@@ -632,15 +648,25 @@ export default function HistoryPage() {
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusBadge[guest.status]}`}>
                         {statusText[guest.status]}
                       </span>
-                      {guest.check_in_at && guest.status === 'active' && (
-                        <p className="text-xs text-gray-400 mt-1">
-                          Check in: {new Date(guest.check_in_at).toLocaleTimeString('id-ID')}
-                        </p>
-                      )}
-                      {guest.check_out_at && guest.status === 'done' && (
-                        <p className="text-xs text-gray-400 mt-1">
-                          Selesai: {new Date(guest.check_out_at).toLocaleTimeString('id-ID')}
-                        </p>
+                      {enableCheckout ? (
+                        <>
+                          {guest.check_in_at && guest.status === 'active' && (
+                            <p className="text-xs text-gray-400 mt-1">
+                              Check in: {formatTimeWIB(guest.check_in_at)}
+                            </p>
+                          )}
+                          {guest.check_out_at && guest.status === 'done' && (
+                            <p className="text-xs text-gray-400 mt-1">
+                              Check out: {formatTimeWIB(guest.check_out_at)}
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        guest.check_in_at && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            Check in: {formatTimeWIB(guest.check_in_at)}
+                          </p>
+                        )
                       )}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-500">
@@ -890,18 +916,20 @@ export default function HistoryPage() {
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Check Out</label>
-                    <div className="relative">
-                      <Clock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
-                      <input
-                        type="datetime-local"
-                        value={editFormData.check_out_at}
-                        onChange={(e) => setEditFormData({ ...editFormData, check_out_at: e.target.value })}
-                        className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#407BA7]"
-                      />
+                  {enableCheckout && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Check Out</label>
+                      <div className="relative">
+                        <Clock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                        <input
+                          type="datetime-local"
+                          value={editFormData.check_out_at}
+                          onChange={(e) => setEditFormData({ ...editFormData, check_out_at: e.target.value })}
+                          className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#407BA7]"
+                        />
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {editError && (

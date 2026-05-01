@@ -31,35 +31,59 @@ export default function SignInPage() {
     setError("");
     setLoading(true);
 
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
+    try {
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
 
-    if (result?.error) {
-      setError("Email atau password salah");
+      if (result?.error) {
+        setError("Email atau password salah");
+        setLoading(false);
+        return;
+      }
+
+      // 🔥 Cek status instansi setelah login sukses
+      const statusRes = await fetch("/api/check-instance-status");
+      const statusData = await statusRes.json();
+
+      if (!statusData.success) {
+        if (statusData.status === "expired") {
+          router.push("/expired");
+          return;
+        }
+        if (statusData.status === "suspended") {
+          router.push("/suspended");
+          return;
+        }
+        setError(statusData.message || "Terjadi kesalahan");
+        setLoading(false);
+        return;
+      }
+
+      // Ambil session untuk dapat data user
+      const res = await fetch("/api/auth/session");
+      const session = await res.json();
+      
+      if (rememberMe) {
+        localStorage.setItem("rememberMe", "true");
+      }
+
+      const userRole = session?.user?.role;
+      const userSlug = session?.user?.slug;
+
+      if (userRole === "super_admin") {
+        router.push("/superadmin");
+      } else if (userSlug && userRole) {
+        router.push(`/${userSlug}/${userRole}`);
+      } else {
+        router.push("/");
+      }
+    } catch (err) {
+      console.error("Login error:", err);
+      setError("Terjadi kesalahan saat login");
       setLoading(false);
-      return;
-    }
-
-    // Ambil session untuk dapat data user
-    const res = await fetch("/api/auth/session");
-    const session = await res.json();
-    
-    if (rememberMe) {
-      localStorage.setItem("rememberMe", "true");
-    }
-
-    const userRole = session?.user?.role;
-    const userSlug = session?.user?.slug;
-
-    if (userRole === "super_admin") {
-      router.push("/superadmin");
-    } else if (userSlug && userRole) {
-      router.push(`/${userSlug}/${userRole}`);
-    } else {
-      router.push("/");
     }
   };
 
@@ -79,7 +103,6 @@ export default function SignInPage() {
                 "linear-gradient(to bottom, black 0%, transparent 100%)",
             }}
           />
-          
 
           <motion.div
             initial={{ opacity: 0, rotate: 0, x: -100, y: -50 }}
@@ -124,7 +147,6 @@ export default function SignInPage() {
             onSubmit={handleSubmit}
             className="mt-8 z-10 w-full max-w-md px-4"
           >
-            
             {/* Email Field */}
             <div className="flex flex-col gap-1.5 mb-4">
               <label
@@ -217,7 +239,7 @@ export default function SignInPage() {
               {loading ? "Processing..." : "Sign In"}
               {!loading && <ArrowRight size={16} />}
             </motion.button>
-                        <Link
+            <Link
               href="/"
               className="inline-flex items-center gap-2 mt-4 text-sm text-gray-500 hover:text-[#407BA7] transition-colors duration-200 group"
             >
@@ -227,7 +249,6 @@ export default function SignInPage() {
               />
               <span>Back to homepage</span>
             </Link>
-
           </motion.form>
 
           <motion.div

@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import { motion } from 'framer-motion';
-import Image from 'next/image';
-import Link from 'next/link';
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { motion } from "framer-motion";
+import Image from "next/image";
+import Link from "next/link";
 import {
   UserCheck,
   Users,
@@ -16,7 +16,7 @@ import {
   ChevronRight,
   Building,
   Briefcase
-} from 'lucide-react';
+} from "lucide-react";
 
 // ============ TYPES ============
 interface PendingGuest {
@@ -69,6 +69,7 @@ export default function PetugasDashboard() {
   const [activeList, setActiveList] = useState<ActiveGuest[]>([]);
   const [stats, setStats] = useState<DashboardStats>({ pending_count: 0, active_count: 0, today_count: 0 });
   const [loading, setLoading] = useState(true);
+  const [enableCheckout, setEnableCheckout] = useState(true);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('id-ID', {
@@ -106,8 +107,21 @@ export default function PetugasDashboard() {
     }
   };
 
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch('/api/petugas/settings');
+      const data = await res.json();
+      if (data.success) {
+        setEnableCheckout(data.enable_checkout);
+      }
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    }
+  };
+
   useEffect(() => {
     fetchDashboard();
+    fetchSettings();
   }, []);
 
   if (loading) {
@@ -164,27 +178,30 @@ export default function PetugasDashboard() {
           </div>
         </motion.div>
         
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="rounded-2xl p-5 cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
-          style={{ background: `linear-gradient(135deg, ${colors.white}, #f8f9fa)`, border: `1px solid ${colors.secondary}` }}
-          onClick={() => window.location.href = `/${slug}/petugas/berkunjung`}
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-500 text-sm">Sedang Berkunjung</p>
-              <p className="text-4xl font-bold mt-1" style={{ color: colors.secondaryDarkest }}>{stats.active_count}</p>
+        {/* Active Card - Hanya tampil jika checkout diaktifkan */}
+        {enableCheckout && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="rounded-2xl p-5 cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+            style={{ background: `linear-gradient(135deg, ${colors.white}, #f8f9fa)`, border: `1px solid ${colors.secondary}` }}
+            onClick={() => window.location.href = `/${slug}/petugas/berkunjung`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm">Sedang Berkunjung</p>
+                <p className="text-4xl font-bold mt-1" style={{ color: colors.secondaryDarkest }}>{stats.active_count}</p>
+              </div>
+              <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: `${colors.secondary}20` }}>
+                <Users size={24} style={{ color: colors.secondary }} />
+              </div>
             </div>
-            <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: `${colors.secondary}20` }}>
-              <Users size={24} style={{ color: colors.secondary }} />
+            <div className="mt-3 text-xs flex items-center gap-1" style={{ color: colors.secondary }}>
+              Lihat semua <ChevronRight size={12} />
             </div>
-          </div>
-          <div className="mt-3 text-xs flex items-center gap-1" style={{ color: colors.secondary }}>
-            Lihat semua <ChevronRight size={12} />
-          </div>
-        </motion.div>
+          </motion.div>
+        )}
         
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -294,90 +311,92 @@ export default function PetugasDashboard() {
           </div>
         </motion.div>
 
-        {/* Active Visitors Section (No Pulang Button) */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.5 }}
-          className="rounded-2xl shadow-sm overflow-hidden"
-          style={{ backgroundColor: colors.white, border: `1px solid ${colors.secondary}20` }}
-        >
-          <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: `1px solid ${colors.secondary}20`, background: `linear-gradient(135deg, ${colors.secondary}05, ${colors.white})` }}>
-            <h2 className="font-semibold flex items-center gap-2" style={{ color: colors.secondaryDarkest }}>
-              <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: `${colors.secondary}15` }}>
-                <Users size={16} style={{ color: colors.secondary }} />
-              </div>
-              Sedang Berkunjung
-              {stats.active_count > 0 && (
-                <span className="ml-2 px-2 py-0.5 text-xs rounded-full" style={{ backgroundColor: `${colors.secondary}15`, color: colors.secondary }}>
-                  {stats.active_count}
-                </span>
-              )}
-            </h2>
-            {stats.active_count > 5 && (
-              <Link href={`/${slug}/petugas/berkunjung`} className="text-xs flex items-center gap-1 hover:underline" style={{ color: colors.secondary }}>
-                Lihat semua <ChevronRight size={12} />
-              </Link>
-            )}
-          </div>
-          <div className="p-4">
-            <div className="space-y-3">
-              {activeList.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3" style={{ backgroundColor: `${colors.secondary}10` }}>
-                    <Users size={32} style={{ color: colors.secondary }} />
-                  </div>
-                  <p className="text-sm" style={{ color: colors.secondary }}>Tidak ada tamu yang sedang berkunjung</p>
+        {/* Active Visitors Section - Hanya tampil jika checkout diaktifkan */}
+        {enableCheckout && (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.5 }}
+            className="rounded-2xl shadow-sm overflow-hidden"
+            style={{ backgroundColor: colors.white, border: `1px solid ${colors.secondary}20` }}
+          >
+            <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: `1px solid ${colors.secondary}20`, background: `linear-gradient(135deg, ${colors.secondary}05, ${colors.white})` }}>
+              <h2 className="font-semibold flex items-center gap-2" style={{ color: colors.secondaryDarkest }}>
+                <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: `${colors.secondary}15` }}>
+                  <Users size={16} style={{ color: colors.secondary }} />
                 </div>
-              ) : (
-                activeList.map((guest) => (
-                  <Link
-                    key={guest.id}
-                    href={`/${slug}/petugas/berkunjung/${guest.id}`}
-                    className="block p-3 rounded-xl transition-all duration-200 hover:shadow-md"
-                    style={{ backgroundColor: `${colors.secondary}05`, border: `1px solid ${colors.secondary}10` }}
-                  >
-                    <div className="flex gap-3">
-                      <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0" style={{ backgroundColor: `${colors.secondary}10` }}>
-                        {guest.photo_url ? (
-                          <Image src={guest.photo_url} alt={guest.name} width={48} height={48} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <User size={20} style={{ color: colors.secondary }} />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate" style={{ color: colors.secondaryDarkest }}>{guest.name}</p>
-                        <div className="flex items-center gap-1 mt-0.5">
-                          <Briefcase size={10} style={{ color: colors.secondary }} />
-                          <p className="text-xs truncate" style={{ color: colors.secondary }}>{guest.purpose}</p>
-                        </div>
-                        {guest.institution && (
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <Building size={10} style={{ color: colors.secondary }} />
-                            <p className="text-xs truncate" style={{ color: colors.secondary }}>{guest.institution}</p>
-                          </div>
-                        )}
-                        {guest.employee_name && (
-                          <p className="text-xs mt-1" style={{ color: colors.secondaryDark }}>Tujuan: {guest.employee_name}</p>
-                        )}
-                        <p className="text-xs mt-1" style={{ color: colors.secondaryDarker }}>
-                          Check in: {formatTime(guest.check_in_at)}
-                        </p>
-                      </div>
-                      <div className="flex-shrink-0">
-                        <span className="px-2 py-1 text-xs rounded-full" style={{ backgroundColor: `${colors.secondary}15`, color: colors.secondary }}>
-                          Aktif
-                        </span>
-                      </div>
-                    </div>
-                  </Link>
-                ))
+                Sedang Berkunjung
+                {stats.active_count > 0 && (
+                  <span className="ml-2 px-2 py-0.5 text-xs rounded-full" style={{ backgroundColor: `${colors.secondary}15`, color: colors.secondary }}>
+                    {stats.active_count}
+                  </span>
+                )}
+              </h2>
+              {stats.active_count > 5 && (
+                <Link href={`/${slug}/petugas/berkunjung`} className="text-xs flex items-center gap-1 hover:underline" style={{ color: colors.secondary }}>
+                  Lihat semua <ChevronRight size={12} />
+                </Link>
               )}
             </div>
-          </div>
-        </motion.div>
+            <div className="p-4">
+              <div className="space-y-3">
+                {activeList.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3" style={{ backgroundColor: `${colors.secondary}10` }}>
+                      <Users size={32} style={{ color: colors.secondary }} />
+                    </div>
+                    <p className="text-sm" style={{ color: colors.secondary }}>Tidak ada tamu yang sedang berkunjung</p>
+                  </div>
+                ) : (
+                  activeList.map((guest) => (
+                    <Link
+                      key={guest.id}
+                      href={`/${slug}/petugas/berkunjung/${guest.id}`}
+                      className="block p-3 rounded-xl transition-all duration-200 hover:shadow-md"
+                      style={{ backgroundColor: `${colors.secondary}05`, border: `1px solid ${colors.secondary}10` }}
+                    >
+                      <div className="flex gap-3">
+                        <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0" style={{ backgroundColor: `${colors.secondary}10` }}>
+                          {guest.photo_url ? (
+                            <Image src={guest.photo_url} alt={guest.name} width={48} height={48} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <User size={20} style={{ color: colors.secondary }} />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate" style={{ color: colors.secondaryDarkest }}>{guest.name}</p>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <Briefcase size={10} style={{ color: colors.secondary }} />
+                            <p className="text-xs truncate" style={{ color: colors.secondary }}>{guest.purpose}</p>
+                          </div>
+                          {guest.institution && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <Building size={10} style={{ color: colors.secondary }} />
+                              <p className="text-xs truncate" style={{ color: colors.secondary }}>{guest.institution}</p>
+                            </div>
+                          )}
+                          {guest.employee_name && (
+                            <p className="text-xs mt-1" style={{ color: colors.secondaryDark }}>Tujuan: {guest.employee_name}</p>
+                          )}
+                          <p className="text-xs mt-1" style={{ color: colors.secondaryDarker }}>
+                            Check in: {formatTime(guest.check_in_at)}
+                          </p>
+                        </div>
+                        <div className="flex-shrink-0">
+                          <span className="px-2 py-1 text-xs rounded-full" style={{ backgroundColor: `${colors.secondary}15`, color: colors.secondary }}>
+                            Aktif
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  ))
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
       </div>
 
       {/* Quick Actions */}
@@ -409,21 +428,24 @@ export default function PetugasDashboard() {
           )}
         </Link>
         
-        <Link
-          href={`/${slug}/petugas/berkunjung`}
-          className="rounded-xl p-4 text-center transition-all duration-200 hover:shadow-md transform hover:-translate-y-0.5"
-          style={{ backgroundColor: colors.white, border: `1px solid ${colors.secondary}20` }}
-        >
-          <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2 transition" style={{ backgroundColor: `${colors.secondary}10` }}>
-            <Users size={22} style={{ color: colors.secondary }} />
-          </div>
-          <p className="text-sm font-medium" style={{ color: colors.secondaryDarkest }}>Tamu Berkunjung</p>
-          {stats.active_count > 0 && (
-            <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded-full" style={{ backgroundColor: `${colors.secondary}15`, color: colors.secondary }}>
-              {stats.active_count} aktif
-            </span>
-          )}
-        </Link>
+        {/* Tombol Tamu Berkunjung - Hanya tampil jika checkout diaktifkan */}
+        {enableCheckout && (
+          <Link
+            href={`/${slug}/petugas/berkunjung`}
+            className="rounded-xl p-4 text-center transition-all duration-200 hover:shadow-md transform hover:-translate-y-0.5"
+            style={{ backgroundColor: colors.white, border: `1px solid ${colors.secondary}20` }}
+          >
+            <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2 transition" style={{ backgroundColor: `${colors.secondary}10` }}>
+              <Users size={22} style={{ color: colors.secondary }} />
+            </div>
+            <p className="text-sm font-medium" style={{ color: colors.secondaryDarkest }}>Tamu Berkunjung</p>
+            {stats.active_count > 0 && (
+              <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded-full" style={{ backgroundColor: `${colors.secondary}15`, color: colors.secondary }}>
+                {stats.active_count} aktif
+              </span>
+            )}
+          </Link>
+        )}
         
         <Link
           href={`/${slug}/petugas/history`}

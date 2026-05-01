@@ -87,6 +87,14 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
+    const instanceId = currentUser.instance_id;
+    
+    // Ambil setting checkout
+    const settings = await query(
+      'SELECT enable_checkout FROM settings WHERE instance_id = ? LIMIT 1',
+      [instanceId]
+    ) as { enable_checkout: number }[];
+    const enableCheckout = settings[0]?.enable_checkout === 1;
     
     // Jika ada parameter id, return detail
     if (id) {
@@ -150,7 +158,7 @@ export async function GET(request: NextRequest) {
           LEFT JOIN employees e ON g.employee_id = e.id
           LEFT JOIN users u ON g.created_by = u.id
           WHERE g.id = ? AND g.instance_id = ?`,
-          [guestId, currentUser.instance_id]
+          [guestId, instanceId]
         ) as GuestDetail[];
         guest = guests[0] || null;
       }
@@ -159,7 +167,6 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Guest not found' }, { status: 404 });
       }
 
-      // Handle NULL photo_url
       const responseGuest = {
         ...guest,
         photo_url: guest.photo_url || null,
@@ -168,6 +175,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: true,
         guest: responseGuest,
+        enable_checkout: enableCheckout,
       });
     }
 
@@ -182,7 +190,6 @@ export async function GET(request: NextRequest) {
     const employeeId = searchParams.get('employeeId') || '';
 
     const offset = (page - 1) * limit;
-    const instanceId = currentUser.instance_id;
 
     let whereClause = 'WHERE g.instance_id = ?';
     const params: (string | number)[] = [instanceId];
@@ -251,7 +258,6 @@ export async function GET(request: NextRequest) {
     `;
     const guests = await query(dataQuery, [...params, limit, offset]) as HistoryGuest[];
 
-    // Handle NULL photo_url for each guest
     const guestsWithHandleNull = guests.map(guest => ({
       ...guest,
       photo_url: guest.photo_url || null,
@@ -266,6 +272,7 @@ export async function GET(request: NextRequest) {
         total,
         totalPages: Math.ceil(total / limit),
       },
+      enable_checkout: enableCheckout,
     });
   } catch (error) {
     console.error('GET Error:', error);
@@ -273,7 +280,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// PATCH - Edit kunjungan
+// PATCH - Edit kunjungan (sama seperti sebelumnya)
 export async function PATCH(request: NextRequest) {
   try {
     const currentUser = await getCurrentUser();
@@ -282,24 +289,12 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { 
-      id, 
-      name, 
-      nik, 
-      institution, 
-      purpose, 
-      employee_id, 
-      status, 
-      check_in_at, 
-      check_out_at,
-      photo_url 
-    } = body;
+    const { id, name, nik, institution, purpose, employee_id, status, check_in_at, check_out_at, photo_url } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Guest ID required' }, { status: 400 });
     }
 
-    // Get old data before update
     let oldGuest: Guest | null = null;
     
     if (currentUser.role === 'super_admin') {
@@ -314,7 +309,6 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Guest not found' }, { status: 404 });
     }
 
-    // Validate required fields
     if ((name !== undefined && !name) || (purpose !== undefined && !purpose)) {
       return NextResponse.json(
         { error: 'Nama tamu dan tujuan kunjungan wajib diisi' },
@@ -322,7 +316,6 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Build update query
     const updateFields: string[] = [];
     const updateParams: (string | number | null)[] = [];
 
@@ -370,7 +363,6 @@ export async function PATCH(request: NextRequest) {
     updateFields.push('updated_at = NOW()');
     updateParams.push(id);
 
-    // Add instance_id condition for non-super_admin
     if (currentUser.role !== 'super_admin') {
       updateParams.push(currentUser.instance_id);
     }

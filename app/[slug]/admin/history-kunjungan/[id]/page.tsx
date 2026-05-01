@@ -57,6 +57,57 @@ const statusConfig: Record<string, { text: string; color: string; bg: string; ic
   },
 };
 
+// Format datetime ke WIB (UTC+7)
+const formatDateTimeWIB = (dateString: string | null) => {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  // Tambah 7 jam untuk WIB
+  date.setHours(date.getHours() + 7);
+  return date.toLocaleString('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+};
+
+// Format tanggal ke WIB
+const formatDateWIB = (dateString: string | null) => {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  date.setHours(date.getHours() + 7);
+  return date.toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+};
+
+// Format waktu ke WIB (tanpa detik)
+const formatTimeWIB = (dateString: string | null) => {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  date.setHours(date.getHours() + 7);
+  return date.toLocaleTimeString('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+// Format waktu ke WIB (dengan detik)
+const formatTimeWithSecondsWIB = (dateString: string | null) => {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  date.setHours(date.getHours() + 7);
+  return date.toLocaleTimeString('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+};
+
 export default function HistoryDetailPage() {
   const params = useParams();
   const slug = params.slug as string;
@@ -65,6 +116,7 @@ export default function HistoryDetailPage() {
   const [guest, setGuest] = useState<GuestDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [enableCheckout, setEnableCheckout] = useState(true);
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -75,6 +127,9 @@ export default function HistoryDetailPage() {
         
         if (data.success && data.guest) {
           setGuest(data.guest);
+          if (data.enable_checkout !== undefined) {
+            setEnableCheckout(data.enable_checkout);
+          }
         } else {
           setError(data.error || 'Gagal memuat data');
         }
@@ -91,36 +146,42 @@ export default function HistoryDetailPage() {
     }
   }, [id]);
 
-  const formatDateTime = (dateString: string | null) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleString('id-ID', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('id-ID', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-  };
-
-  const formatTime = (dateString: string | null) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleTimeString('id-ID', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const handlePrint = () => {
-    window.print();
+  // Hitung durasi kunjungan dengan benar (dalam WIB)
+  const getDuration = () => {
+    if (!guest?.check_in_at) return '-';
+    
+    const start = new Date(guest.check_in_at);
+    // Jika sudah checkout, gunakan waktu checkout, jika belum gunakan waktu sekarang
+    const end = guest.check_out_at ? new Date(guest.check_out_at) : new Date();
+    
+    const diffMs = end.getTime() - start.getTime();
+    
+    // Validasi jika diffMs negatif (data tidak valid)
+    if (diffMs < 0) return 'Data tidak valid';
+    
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    const diffSeconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+    
+    if (guest.check_out_at) {
+      // Sudah selesai, tampilkan durasi lengkap
+      if (diffHours > 0) {
+        return `${diffHours} jam ${diffMinutes} menit ${diffSeconds} detik`;
+      } else if (diffMinutes > 0) {
+        return `${diffMinutes} menit ${diffSeconds} detik`;
+      } else {
+        return `${diffSeconds} detik`;
+      }
+    } else {
+      // Masih berkunjung, tampilkan durasi sementara
+      if (diffHours > 0) {
+        return `Masih berkunjung (${diffHours} jam ${diffMinutes} menit)`;
+      } else if (diffMinutes > 0) {
+        return `Masih berkunjung (${diffMinutes} menit)`;
+      } else {
+        return `Masih berkunjung (${diffSeconds} detik)`;
+      }
+    }
   };
 
   if (loading) {
@@ -205,7 +266,7 @@ export default function HistoryDetailPage() {
             </div>
           </motion.div>
 
-          {/* Status Card */}
+          {/* Status Card - Menampilkan check-in/out dengan benar dalam WIB */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -224,33 +285,33 @@ export default function HistoryDetailPage() {
               </div>
               
               <div className="mt-4 space-y-2 text-sm">
-                {guest.check_in_at && (
-                  <div className="flex justify-between py-2 border-b border-gray-100">
-                    <span className="text-gray-500">Check In</span>
-                    <span className="font-medium text-gray-700">{formatDateTime(guest.check_in_at)}</span>
-                  </div>
-                )}
-                {guest.check_out_at && (
-                  <div className="flex justify-between py-2 border-b border-gray-100">
-                    <span className="text-gray-500">Check Out</span>
-                    <span className="font-medium text-gray-700">{formatDateTime(guest.check_out_at)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between py-2">
-                  <span className="text-gray-500">Durasi</span>
+                {/* Check In Time - WIB */}
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-500">Check In</span>
                   <span className="font-medium text-gray-700">
-                    {guest.check_in_at && guest.check_out_at ? (
-                      (() => {
-                        const start = new Date(guest.check_in_at);
-                        const end = new Date(guest.check_out_at);
-                        const diffMs = end.getTime() - start.getTime();
-                        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-                        const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                        return `${diffHours} jam ${diffMinutes} menit`;
-                      })()
-                    ) : guest.check_in_at ? 'Masih berkunjung' : '-'}
+                    {formatDateTimeWIB(guest.check_in_at || guest.created_at)}
                   </span>
                 </div>
+                
+                {/* Check Out Time - Hanya tampil jika checkout diaktifkan */}
+                {enableCheckout && (
+                  <>
+                    <div className="flex justify-between py-2 border-b border-gray-100">
+                      <span className="text-gray-500">Check Out</span>
+                      <span className="font-medium text-gray-700">
+                        {guest.check_out_at ? formatDateTimeWIB(guest.check_out_at) : '-'}
+                      </span>
+                    </div>
+                    
+                    {/* Duration - Hanya tampil jika checkout diaktifkan */}
+                    <div className="flex justify-between py-2">
+                      <span className="text-gray-500">Durasi</span>
+                      <span className="font-medium text-gray-700">
+                        {getDuration()}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </motion.div>
@@ -298,16 +359,38 @@ export default function HistoryDetailPage() {
                   <label className="text-xs text-gray-400 uppercase tracking-wider">Tanggal Kunjungan</label>
                   <p className="text-gray-800 mt-1 flex items-center gap-1">
                     <Calendar size={14} className="text-gray-400" />
-                    {formatDate(guest.created_at)}
+                    {formatDateWIB(guest.created_at)}
                   </p>
                 </div>
                 <div>
                   <label className="text-xs text-gray-400 uppercase tracking-wider">Waktu Kunjungan</label>
                   <p className="text-gray-800 mt-1 flex items-center gap-1">
                     <Clock size={14} className="text-gray-400" />
-                    {formatTime(guest.created_at)}
+                    {formatTimeWIB(guest.created_at)}
                   </p>
                 </div>
+                
+                {/* Tampilkan check-in dengan format terpisah jika ada */}
+                {guest.check_in_at && (
+                  <div>
+                    <label className="text-xs text-gray-400 uppercase tracking-wider">Waktu Check In</label>
+                    <p className="text-gray-800 mt-1 flex items-center gap-1">
+                      <Clock size={14} className="text-gray-400" />
+                      {formatTimeWithSecondsWIB(guest.check_in_at)}
+                    </p>
+                  </div>
+                )}
+                
+                {/* Tampilkan check-out jika enable checkout dan data ada */}
+                {enableCheckout && guest.check_out_at && (
+                  <div>
+                    <label className="text-xs text-gray-400 uppercase tracking-wider">Waktu Check Out</label>
+                    <p className="text-gray-800 mt-1 flex items-center gap-1">
+                      <Clock size={14} className="text-gray-400" />
+                      {formatTimeWithSecondsWIB(guest.check_out_at)}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </motion.div>
@@ -366,13 +449,17 @@ export default function HistoryDetailPage() {
                 </div>
                 <div>
                   <label className="text-xs text-gray-400 uppercase tracking-wider">Waktu Validasi</label>
-                  <p className="text-gray-800 mt-1">{formatDateTime(guest.check_in_at || guest.created_at)}</p>
+                  <p className="text-gray-800 mt-1">{formatDateTimeWIB(guest.check_in_at || guest.created_at)}</p>
                 </div>
                 <div className="md:col-span-2">
                   <label className="text-xs text-gray-400 uppercase tracking-wider">Catatan</label>
                   <p className="text-gray-800 mt-1">
                     {guest.status === 'pending' && 'Menunggu validasi oleh petugas'}
-                    {guest.status === 'active' && 'Tamu sedang berkunjung'}
+                    {guest.status === 'active' && enableCheckout 
+                      ? 'Tamu sedang berkunjung' 
+                      : guest.status === 'active' && !enableCheckout 
+                      ? 'Tamu telah melakukan check-in' 
+                      : ''}
                     {guest.status === 'done' && 'Kunjungan selesai'}
                     {guest.status === 'rejected' && 'Kunjungan ditolak'}
                   </p>

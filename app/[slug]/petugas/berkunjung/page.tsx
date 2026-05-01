@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
@@ -52,6 +52,7 @@ const colors = {
 
 export default function BerkunjungPage() {
   const params = useParams();
+  const router = useRouter();
   const slug = params.slug as string;
 
   const [guests, setGuests] = useState<ActiveGuest[]>([]);
@@ -71,6 +72,7 @@ export default function BerkunjungPage() {
   } | null>(null);
   const [showCheckoutModal, setShowCheckoutModal] =
     useState<ActiveGuest | null>(null);
+  const [settingsChecked, setSettingsChecked] = useState(false);
 
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
 
@@ -81,7 +83,6 @@ export default function BerkunjungPage() {
 
   const formatTimeWIB = (dateString: string) => {
     const date = new Date(dateString);
-    // Tambah 7 jam untuk WIB
     date.setHours(date.getHours() + 7);
     return date.toLocaleString("id-ID", {
       day: "numeric",
@@ -90,6 +91,24 @@ export default function BerkunjungPage() {
       minute: "2-digit",
     });
   };
+
+  // Cek setting checkout, redirect jika disabled
+  useEffect(() => {
+    const checkSettings = async () => {
+      try {
+        const res = await fetch("/api/petugas/settings");
+        const data = await res.json();
+        if (data.success && !data.enable_checkout) {
+          router.push(`/${slug}/petugas`);
+        }
+      } catch (error) {
+        console.error("Error checking settings:", error);
+      } finally {
+        setSettingsChecked(true);
+      }
+    };
+    checkSettings();
+  }, [slug, router]);
 
   const fetchData = async (page = 1) => {
     setLoading(true);
@@ -154,8 +173,10 @@ export default function BerkunjungPage() {
   }, [searchInput]);
 
   useEffect(() => {
-    fetchData(pagination.page);
-  }, [search, pagination.page]);
+    if (settingsChecked) {
+      fetchData(pagination.page);
+    }
+  }, [search, pagination.page, settingsChecked]);
 
   const goToPage = (page: number) => {
     if (page >= 1 && page <= pagination.totalPages) {
@@ -167,6 +188,15 @@ export default function BerkunjungPage() {
     setSearchInput("");
     setSearch("");
   };
+
+  // Loading state selama pengecekan settings
+  if (!settingsChecked) {
+    return (
+      <div className="flex justify-center items-center h-96">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: colors.secondary }}></div>
+      </div>
+    );
+  }
 
   return (
     <>

@@ -74,14 +74,14 @@ export async function GET(request: NextRequest) {
 
     for (const guest of allGuests) {
       if (guest.nik) {
-        const decryptedNIK = decrypt(guest.nik);
-        if (decryptedNIK === nik) {
+        // const decryptedNIK = decrypt(guest.nik);
+        if (guest.nik === nik) {
           // Cek apakah kunjungan hari ini (berdasarkan created_at)
           const guestDate = new Date(guest.created_at);
           guestDate.setHours(0, 0, 0, 0);
           
           if (guestDate.getTime() === today.getTime()) {
-            foundGuest = { ...guest, nik: decryptedNIK };
+            foundGuest = { ...guest, nik: guest.nik };
             break;
           }
         }

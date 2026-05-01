@@ -18,6 +18,10 @@ export default async function PetugasLayout({ children, params }: Props) {
   }
   
   const userRole = session.user.role ?? null
+  if (userRole !== 'petugas') {
+    redirect("/forbidden")
+  }
+
 
   const email = session.user.email
   const { slug } = await params

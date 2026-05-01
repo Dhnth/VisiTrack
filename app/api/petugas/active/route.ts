@@ -34,6 +34,16 @@ async function getCurrentUser(): Promise<User | null> {
   return users[0] || null;
 }
 
+async function isCheckoutEnabled(instanceId: number): Promise<boolean> {
+  // Ambil enable_checkout dari kolom langsung
+  const settings = await query(
+    'SELECT enable_checkout FROM settings WHERE instance_id = ? LIMIT 1',
+    [instanceId]
+  ) as { enable_checkout: number }[];
+  
+  return settings[0]?.enable_checkout === 1;
+}
+
 // GET - List active guests
 export async function GET() {
   try {
@@ -43,6 +53,18 @@ export async function GET() {
     }
 
     const instanceId = currentUser.instance_id;
+    
+    // Cek apakah checkout diaktifkan
+    const checkoutEnabled = await isCheckoutEnabled(instanceId);
+    
+    // Jika checkout tidak diaktifkan, return kosong
+    if (!checkoutEnabled) {
+      return NextResponse.json({
+        success: true,
+        guests: [],
+        message: 'Checkout dinonaktifkan',
+      });
+    }
 
     const activeList = await query(
       `SELECT 
@@ -79,6 +101,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const instanceId = currentUser.instance_id;
+    
+    // Cek apakah checkout diaktifkan
+    const checkoutEnabled = await isCheckoutEnabled(instanceId);
+    if (!checkoutEnabled) {
+      return NextResponse.json({ 
+        error: 'Checkout dinonaktifkan oleh admin' 
+      }, { status: 400 });
+    }
+
     const body = await request.json();
     const { id } = body;
 
@@ -87,7 +119,6 @@ export async function POST(request: NextRequest) {
     }
 
     const guestId = parseInt(id);
-    const instanceId = currentUser.instance_id;
 
     // Get guest data
     const guestResult = await query(

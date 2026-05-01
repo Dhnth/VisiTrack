@@ -38,13 +38,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Worksheet tidak ditemukan' }, { status: 400 });
     }
 
-    // Ambil default password dari settings
-    const importSettings = await query(
-      "SELECT setting_value FROM settings WHERE instance_id = ? AND setting_key = 'import_default_password'",
+    // Ambil default password dari kolom default_password
+    const settings = await query(
+      'SELECT default_password FROM settings WHERE instance_id = ? LIMIT 1',
       [user.instance_id]
-    ) as { setting_value: string }[];
+    ) as { default_password: string }[];
 
-    const defaultPasswordPlain = importSettings[0]?.setting_value || 'password123';
+    const defaultPasswordPlain = settings[0]?.default_password || 'password123';
     const defaultPassword = await bcrypt.hash(defaultPasswordPlain, 10);
 
     let successCount = 0;

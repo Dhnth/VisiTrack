@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { auth } from '@/lib/auth';
 import { createActivityLog } from '@/lib/activity-log';
-import { decrypt } from '@/lib/encryption';
 
 interface User {
   id: number;
@@ -53,6 +52,13 @@ export async function GET(request: NextRequest) {
     const id = searchParams.get('id');
     const instanceId = currentUser.instance_id;
     
+    // Ambil setting checkout
+    const settings = await query(
+      'SELECT enable_checkout FROM settings WHERE instance_id = ? LIMIT 1',
+      [instanceId]
+    ) as { enable_checkout: number }[];
+    const enableCheckout = settings[0]?.enable_checkout === 1;
+    
     // Jika ada parameter id, return detail (untuk edit)
     if (id) {
       const guestId = parseInt(id);
@@ -85,19 +91,19 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Guest not found' }, { status: 404 });
       }
 
-      // Decrypt NIK untuk detail
       const decryptedGuest = {
         ...guests[0],
-        nik: guests[0].nik ? decrypt(guests[0].nik) : null
+        nik: guests[0].nik ? guests[0].nik : null
       };
 
       return NextResponse.json({
         success: true,
         guest: decryptedGuest,
+        enable_checkout: enableCheckout,
       });
     }
 
-    // Jika tidak ada parameter id, return list history hari ini (berdasarkan checkout)
+    // Jika tidak ada parameter id, return list history hari ini
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const search = searchParams.get('search') || '';
@@ -105,16 +111,27 @@ export async function GET(request: NextRequest) {
 
     const offset = (page - 1) * limit;
 
-    // 🔥 PERBAIKAN: Filter berdasarkan hari ini (checkout untuk done, created_at untuk rejected, check_in untuk active)
-    let whereClause = `
-      WHERE g.instance_id = ? 
-      AND (
-        (g.status = 'done' AND DATE(g.check_out_at) = CURDATE())
-        OR (g.status = 'rejected' AND DATE(g.created_at) = CURDATE())
-        OR (g.status = 'active' AND DATE(g.check_in_at) = CURDATE())
-      )
-    `;
+    // 🔥 PERBAIKAN: Filter berdasarkan enable_checkout
+    let whereClause: string;
     const params: (string | number)[] = [instanceId];
+
+    if (enableCheckout) {
+      // Jika checkout aktif: filter berdasarkan check_out_at untuk done, check_in_at untuk active
+      whereClause = `
+        WHERE g.instance_id = ? 
+        AND (
+          (g.status = 'done' AND DATE(g.check_out_at) = CURDATE())
+          OR (g.status = 'rejected' AND DATE(g.created_at) = CURDATE())
+          OR (g.status = 'active' AND DATE(g.check_in_at) = CURDATE())
+        )
+      `;
+    } else {
+      // Jika checkout nonaktif: semua kunjungan hari ini berdasarkan created_at
+      whereClause = `
+        WHERE g.instance_id = ? 
+        AND DATE(g.created_at) = CURDATE()
+      `;
+    }
 
     if (search) {
       whereClause += ' AND (g.name LIKE ? OR g.institution LIKE ? OR g.purpose LIKE ?)';
@@ -156,15 +173,14 @@ export async function GET(request: NextRequest) {
       LEFT JOIN employees e ON g.employee_id = e.id
       LEFT JOIN users u ON g.created_by = u.id
       ${whereClause}
-      ORDER BY g.check_out_at DESC, g.created_at DESC
+      ORDER BY g.created_at DESC
       LIMIT ? OFFSET ?
     `;
     const guests = await query(dataQuery, [...params, limit, offset]) as Guest[];
 
-    // Decrypt NIK untuk setiap guest
     const guestsWithDecryptedNIK = guests.map(guest => ({
       ...guest,
-      nik: guest.nik ? decrypt(guest.nik) : null
+      nik: guest.nik ? guest.nik : null
     }));
 
     return NextResponse.json({
@@ -176,6 +192,7 @@ export async function GET(request: NextRequest) {
         total,
         totalPages: Math.ceil(total / limit),
       },
+      enable_checkout: enableCheckout,
     });
   } catch (error) {
     console.error('History GET API Error:', error);
@@ -183,7 +200,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// PATCH - Edit history (hanya untuk kunjungan yang checkout hari ini)
+// PATCH - Edit history
 export async function PATCH(request: NextRequest) {
   try {
     const currentUser = await getCurrentUser();
@@ -201,7 +218,6 @@ export async function PATCH(request: NextRequest) {
     const guestId = parseInt(id);
     const instanceId = currentUser.instance_id;
 
-    // Get old data and verify it's from today (checkout hari ini)
     const oldGuest = await query(
       'SELECT name, status, check_out_at, created_at FROM guests WHERE id = ? AND instance_id = ?',
       [guestId, instanceId]
@@ -215,7 +231,6 @@ export async function PATCH(request: NextRequest) {
     const isTodayCheckout = oldGuest[0].check_out_at && new Date(oldGuest[0].check_out_at).toDateString() === today.toDateString();
     const isTodayCreated = new Date(oldGuest[0].created_at).toDateString() === today.toDateString();
 
-    // Hanya bisa edit jika checkout hari ini ATAU dibuat hari ini (untuk rejected/active)
     if (!isTodayCheckout && !isTodayCreated) {
       return NextResponse.json(
         { error: 'Hanya dapat mengedit kunjungan yang checkout hari ini' },
@@ -223,7 +238,6 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Build update query
     const updateFields: string[] = [];
     const updateParams: (string | number | null)[] = [];
 

@@ -21,7 +21,7 @@ import {
 import Image from "next/image";
 import { signOut } from "next-auth/react";
 
-const menuItems = [
+const allMenuItems = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "QR Code", href: "/qrcode", icon: QrCode },
   { name: "Tamu Validasi", href: "/validasi", icon: UserCheck },
@@ -47,11 +47,11 @@ export default function PetugasClientLayout({
   instanceLogo,
   petugasName,
   petugasEmail,
-  userRole,
 }: PetugasClientLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [enableCheckout, setEnableCheckout] = useState(true);
   const pathname = usePathname();
 
   // Ambil inisial untuk avatar
@@ -63,7 +63,27 @@ export default function PetugasClientLayout({
       .toUpperCase()
       .slice(0, 2);
   };
-  
+
+  // Fetch checkout setting
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch("/api/petugas/settings");
+        const data = await res.json();
+        if (data.success) {
+          setEnableCheckout(data.enable_checkout);
+        }
+      } catch (error) {
+        console.error("Error fetching checkout settings:", error);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  // Filter menu items based on enableCheckout - langsung saat render, bukan di useEffect
+  const menuItems = enableCheckout 
+    ? allMenuItems 
+    : allMenuItems.filter((item) => item.name !== "Tamu Berkunjung");
 
   // Deteksi ukuran layar
   useEffect(() => {
