@@ -38,6 +38,8 @@ interface PetugasClientLayoutProps {
   petugasName: string;
   petugasEmail: string;
   userRole: string | null;
+  // Tambahkan prop enableCheckout dari server
+  enableCheckout?: boolean;
 }
 
 export default function PetugasClientLayout({
@@ -47,11 +49,14 @@ export default function PetugasClientLayout({
   instanceLogo,
   petugasName,
   petugasEmail,
+  enableCheckout: initialEnableCheckout,
 }: PetugasClientLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [enableCheckout, setEnableCheckout] = useState(true);
+  // Set default ke false saat pertama render, baru update jika ada data dari server
+  const [enableCheckout, setEnableCheckout] = useState(initialEnableCheckout ?? false);
+  const [loading, setLoading] = useState(true);
   const pathname = usePathname();
 
   // Ambil inisial untuk avatar
@@ -64,9 +69,16 @@ export default function PetugasClientLayout({
       .slice(0, 2);
   };
 
-  // Fetch checkout setting
+  // Fetch checkout setting hanya jika tidak ada initial value dari server
   useEffect(() => {
     const fetchSettings = async () => {
+      // Jika sudah ada dari server, tidak perlu fetch lagi
+      if (initialEnableCheckout !== undefined) {
+        setEnableCheckout(initialEnableCheckout);
+        setLoading(false);
+        return;
+      }
+
       try {
         const res = await fetch("/api/petugas/settings");
         const data = await res.json();
@@ -75,13 +87,16 @@ export default function PetugasClientLayout({
         }
       } catch (error) {
         console.error("Error fetching checkout settings:", error);
+      } finally {
+        setLoading(false);
       }
     };
     fetchSettings();
-  }, []);
+  }, [initialEnableCheckout]);
 
-  // Filter menu items based on enableCheckout - langsung saat render, bukan di useEffect
-  const menuItems = enableCheckout 
+  // Filter menu items based on enableCheckout - langsung saat render
+  // Jika masih loading, gunakan false sebagai default (Tamu Berkunjung tidak muncul)
+  const menuItems = (loading ? false : enableCheckout) 
     ? allMenuItems 
     : allMenuItems.filter((item) => item.name !== "Tamu Berkunjung");
 

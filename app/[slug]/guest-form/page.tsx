@@ -10,7 +10,6 @@ import {
   Building,
   Briefcase,
   Camera,
-  Upload,
   X,
   CheckCircle,
   AlertCircle,
@@ -254,7 +253,6 @@ export default function GuestFormPage() {
     message: string;
   } | null>(null);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -442,7 +440,7 @@ export default function GuestFormPage() {
       const data = await res.json();
 
       if (data.success) {
-        setPhotoUrl(data.url); // Ini sudah path file, bukan base64
+        setPhotoUrl(data.url);
         setShowPreviewModal(false);
         setCapturedPhoto(null);
         setShowPhotoModal(false);
@@ -455,48 +453,6 @@ export default function GuestFormPage() {
       showToast("error", "Terjadi kesalahan saat upload foto");
     } finally {
       setUploadingPhoto(false);
-    }
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
-    if (!allowedTypes.includes(file.type)) {
-      showToast("error", "Format file harus PNG, JPG, atau WebP");
-      return;
-    }
-
-    if (file.size > 2 * 1024 * 1024) {
-      showToast("error", "Ukuran file maksimal 2MB");
-      return;
-    }
-
-    setUploadingPhoto(true);
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("slug", slug);
-
-    try {
-      const res = await fetch("/api/guest/upload-photo", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      if (data.success) {
-        setPhotoUrl(data.url);
-        showToast("success", "Foto berhasil diupload");
-        setShowPhotoModal(false);
-      } else {
-        showToast("error", data.error || "Gagal upload foto");
-      }
-    } catch (err) {
-      console.error("Upload error:", err);
-      showToast("error", "Terjadi kesalahan");
-    } finally {
-      setUploadingPhoto(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -514,7 +470,7 @@ export default function GuestFormPage() {
     setSubmitting(true);
     try {
       const payload = {
-        token: savedToken, // Gunakan token dari sessionStorage
+        token: savedToken,
         name: formData.name,
         nik: formData.nik || null,
         institution: formData.institution || null,
@@ -533,7 +489,6 @@ export default function GuestFormPage() {
       const data = await res.json();
 
       if (data.success) {
-        // Hapus token setelah berhasil submit
         sessionStorage.removeItem("guest_token");
         showToast("success", "Kunjungan berhasil didaftarkan");
         setTimeout(() => router.push(`/${slug}/guest-success`), 1500);
@@ -638,7 +593,7 @@ export default function GuestFormPage() {
         )}
       </AnimatePresence>
 
-      {/* Modal Pilih Foto */}
+      {/* Modal Pilih Kamera */}
       <AnimatePresence>
         {showPhotoModal && !showCamera && !capturedPhoto && (
           <motion.div
@@ -679,11 +634,11 @@ export default function GuestFormPage() {
                   className="text-sm mt-1"
                   style={{ color: colors.secondaryDark }}
                 >
-                  Pilih metode untuk mengambil foto
+                  Ambil foto langsung dari kamera
                 </p>
               </div>
 
-              <div className="p-5 space-y-4">
+              <div className="p-5">
                 <div
                   className="rounded-xl p-6 text-center"
                   style={{
@@ -692,13 +647,13 @@ export default function GuestFormPage() {
                   }}
                 >
                   <div
-                    className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3"
+                    className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
                     style={{ backgroundColor: `${colors.secondary}20` }}
                   >
-                    <Camera size={28} style={{ color: colors.secondary }} />
+                    <Camera size={36} style={{ color: colors.secondary }} />
                   </div>
                   <p
-                    className="text-sm font-medium mb-1"
+                    className="text-sm font-medium mb-2"
                     style={{ color: colors.secondaryDarkest }}
                   >
                     Ambil Foto Baru
@@ -707,47 +662,28 @@ export default function GuestFormPage() {
                     className="text-xs"
                     style={{ color: colors.secondaryDark }}
                   >
-                    Pastikan wajah tamu terlihat jelas
+                    Pastikan wajah anda terlihat jelas
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={startCamera}
-                    className="py-2.5 rounded-xl transition flex items-center justify-center gap-2 font-medium"
-                    style={{
-                      backgroundColor: colors.secondary,
-                      color: colors.white,
-                    }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.backgroundColor =
-                        colors.secondaryDark)
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.backgroundColor = colors.secondary)
-                    }
-                  >
-                    <Camera size={18} />
-                    Buka Kamera
-                  </button>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="py-2.5 rounded-xl transition flex items-center justify-center gap-2 font-medium"
-                    style={{
-                      border: `1px solid ${colors.secondary}20`,
-                      color: colors.secondaryDark,
-                    }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.backgroundColor = `${colors.secondary}10`)
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.backgroundColor = "transparent")
-                    }
-                  >
-                    <Upload size={18} />
-                    Upload File
-                  </button>
-                </div>
+                <button
+                  onClick={startCamera}
+                  className="w-full mt-4 py-3 rounded-xl transition flex items-center justify-center gap-2 font-medium"
+                  style={{
+                    backgroundColor: colors.secondary,
+                    color: colors.white,
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.backgroundColor =
+                      colors.secondaryDark)
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.backgroundColor = colors.secondary)
+                  }
+                >
+                  <Camera size={18} />
+                  Buka Kamera
+                </button>
               </div>
 
               <div
@@ -925,7 +861,8 @@ export default function GuestFormPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     onClick={retakePhoto}
-                    className="py-2.5 rounded-xl transition flex items-center justify-center gap-2 font-medium"
+                    disabled={uploadingPhoto}
+                    className="py-2.5 rounded-xl transition flex items-center justify-center gap-2 font-medium disabled:opacity-50"
                     style={{ backgroundColor: "#EAB308", color: colors.white }}
                     onMouseEnter={(e) =>
                       (e.currentTarget.style.backgroundColor = "#CA8A04")
@@ -939,7 +876,8 @@ export default function GuestFormPage() {
                   </button>
                   <button
                     onClick={saveCapturedPhoto}
-                    className="py-2.5 rounded-xl transition flex items-center justify-center gap-2 font-medium"
+                    disabled={uploadingPhoto}
+                    className="py-2.5 rounded-xl transition flex items-center justify-center gap-2 font-medium disabled:opacity-50"
                     style={{
                       backgroundColor: colors.secondary,
                       color: colors.white,
@@ -952,8 +890,17 @@ export default function GuestFormPage() {
                       (e.currentTarget.style.backgroundColor = colors.secondary)
                     }
                   >
-                    <CheckCircle size={18} />
-                    Gunakan Foto
+                    {uploadingPhoto ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Mengupload...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle size={18} />
+                        Gunakan Foto
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
@@ -962,13 +909,6 @@ export default function GuestFormPage() {
         )}
       </AnimatePresence>
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/png,image/jpeg,image/jpg,image/webp"
-        onChange={handleFileUpload}
-        className="hidden"
-      />
       <canvas ref={canvasRef} className="hidden" />
 
       {/* Background Pattern */}
@@ -1066,13 +1006,13 @@ export default function GuestFormPage() {
                       className="text-xs"
                       style={{ color: colors.secondaryDark }}
                     >
-                      Klik area foto untuk mengambil/upload
+                      Klik area foto untuk mengambil foto
                     </p>
                     <p
                       className="text-xs"
                       style={{ color: colors.secondaryDark }}
                     >
-                      Format: JPG, PNG (max 2MB)
+                      Foto wajib diambil langsung dari kamera
                     </p>
                   </div>
                 </div>

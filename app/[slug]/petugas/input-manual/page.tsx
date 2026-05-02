@@ -13,7 +13,6 @@ import {
   CheckCircle,
   AlertCircle,
   Users,
-  Upload,
   Camera,
   RefreshCw,
   X,
@@ -73,7 +72,6 @@ export default function InputManualPage() {
   } | null>(null);
 
   // Refs for camera
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -226,45 +224,17 @@ export default function InputManualPage() {
     }
   };
 
-  // Upload from file
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploadingPhoto(true);
-    const formData = new FormData();
-    formData.append("file", file);
-
-    try {
-      const res = await fetch("/api/petugas/upload-temp", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      if (data.success) {
-        setPhotoUrl(data.url);
-        showToast("success", "Foto berhasil diupload");
-        setShowPhotoModal(false);
-      } else {
-        showToast("error", data.error || "Gagal upload foto");
-      }
-    } catch (err) {
-      console.error("Upload error:", err);
-      showToast("error", "Terjadi kesalahan");
-    } finally {
-      setUploadingPhoto(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-    }
-  };
-
   // Submit form
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.name || !formData.purpose) {
       showToast("error", "Nama tamu dan tujuan kunjungan wajib diisi");
+      return;
+    }
+
+    if (!photoUrl) {
+      showToast("error", "Foto tamu wajib diambil");
       return;
     }
 
@@ -335,7 +305,7 @@ export default function InputManualPage() {
         )}
       </AnimatePresence>
 
-      {/* Modal Pilih Foto */}
+      {/* Modal Pilih Kamera */}
       <AnimatePresence>
         {showPhotoModal && !showCamera && !capturedPhoto && (
           <motion.div
@@ -355,7 +325,7 @@ export default function InputManualPage() {
             >
               <div className="p-5" style={{ borderBottom: `1px solid ${colors.secondary}20` }}>
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-semibold" style={{ color: colors.secondaryDarkest }}>Foto Tamu</h3>
+                  <h3 className="text-xl font-semibold" style={{ color: colors.secondaryDarkest }}>Ambil Foto Tamu</h3>
                   <button
                     onClick={() => setShowPhotoModal(false)}
                     className="p-1 rounded-lg transition"
@@ -364,40 +334,28 @@ export default function InputManualPage() {
                     <X size={20} />
                   </button>
                 </div>
-                <p className="text-sm mt-1" style={{ color: colors.secondaryDark }}>Pilih metode untuk mengambil foto</p>
+                <p className="text-sm mt-1" style={{ color: colors.secondaryDark }}>Pastikan wajah tamu terlihat jelas</p>
               </div>
 
-              <div className="p-5 space-y-4">
+              <div className="p-5">
                 <div className="rounded-xl p-6 text-center" style={{ backgroundColor: `${colors.secondary}10`, border: `1px solid ${colors.secondary}20` }}>
-                  <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3" style={{ backgroundColor: `${colors.secondary}20` }}>
-                    <Camera size={28} style={{ color: colors.secondary }} />
+                  <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: `${colors.secondary}20` }}>
+                    <Camera size={36} style={{ color: colors.secondary }} />
                   </div>
-                  <p className="text-sm font-medium mb-1" style={{ color: colors.secondaryDarkest }}>Ambil Foto Baru</p>
-                  <p className="text-xs" style={{ color: colors.secondaryDark }}>Pastikan wajah tamu terlihat jelas</p>
+                  <p className="text-sm font-medium mb-2" style={{ color: colors.secondaryDarkest }}>Ambil Foto Baru</p>
+                  <p className="text-xs" style={{ color: colors.secondaryDark }}>Gunakan kamera untuk mengambil foto tamu</p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={startCamera}
-                    className="py-2.5 rounded-xl transition flex items-center justify-center gap-2 font-medium"
-                    style={{ backgroundColor: colors.secondary, color: colors.white }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.secondaryDark}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.secondary}
-                  >
-                    <Camera size={18} />
-                    Buka Kamera
-                  </button>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="py-2.5 rounded-xl transition flex items-center justify-center gap-2 font-medium"
-                    style={{ border: `1px solid ${colors.secondary}20`, color: colors.secondaryDark }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${colors.secondary}10`}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
-                  >
-                    <Upload size={18} />
-                    Upload File
-                  </button>
-                </div>
+                <button
+                  onClick={startCamera}
+                  className="w-full mt-4 py-3 rounded-xl transition flex items-center justify-center gap-2 font-medium"
+                  style={{ backgroundColor: colors.secondary, color: colors.white }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.secondaryDark}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.secondary}
+                >
+                  <Camera size={18} />
+                  Buka Kamera
+                </button>
               </div>
 
               <div className="p-4" style={{ borderTop: `1px solid ${colors.secondary}10`, backgroundColor: `${colors.secondary}05` }}>
@@ -573,15 +531,6 @@ export default function InputManualPage() {
         )}
       </AnimatePresence>
 
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/png,image/jpeg,image/jpg,image/webp"
-        onChange={handleFileUpload}
-        className="hidden"
-      />
-
       <canvas ref={canvasRef} className="hidden" />
 
       {/* Main Content */}
@@ -642,7 +591,7 @@ export default function InputManualPage() {
               <div>
                 <p className="text-sm font-medium" style={{ color: colors.secondaryDarkest }}>Foto Tamu</p>
                 <p className="text-xs" style={{ color: colors.secondaryDark }}>Klik ikon kamera untuk mengambil foto</p>
-                <p className="text-xs" style={{ color: colors.secondaryDark }}>Format: JPG, PNG (max 2MB)</p>
+                <p className="text-xs" style={{ color: colors.secondaryDark }}>Foto wajib diambil langsung dari kamera</p>
               </div>
             </div>
 

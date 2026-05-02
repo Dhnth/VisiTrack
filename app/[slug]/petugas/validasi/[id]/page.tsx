@@ -16,7 +16,6 @@ import {
   XCircle,
   AlertCircle,
   Users,
-  Upload,
   Camera,
   RefreshCw,
   X,
@@ -74,7 +73,6 @@ export default function ValidasiDetailPage() {
     message: string;
   } | null>(null);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -235,40 +233,6 @@ export default function ValidasiDetailPage() {
     }
   };
 
-  // Upload from file
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploadingPhoto(true);
-    const formData = new FormData();
-    formData.append("file", file);
-
-    try {
-      const res = await fetch(`/api/petugas/pending/${id}`, {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      if (data.success) {
-        setGuest((prev) =>
-          prev ? { ...prev, photo_url: data.photo_url } : null,
-        );
-        showToast("success", "Foto berhasil diupload");
-        setShowPhotoModal(false);
-      } else {
-        showToast("error", data.error || "Gagal upload foto");
-      }
-    } catch (err) {
-      showToast("error", "Terjadi kesalahan");
-    } finally {
-      setUploadingPhoto(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-    }
-  };
-
   const handleAction = async (action: "approve" | "reject") => {
     setActionLoading(true);
     try {
@@ -387,7 +351,7 @@ export default function ValidasiDetailPage() {
         )}
       </AnimatePresence>
 
-      {/* Modal Pilih Foto */}
+      {/* Modal Pilih Kamera */}
       <AnimatePresence>
         {showPhotoModal && !showCamera && !capturedPhoto && (
           <motion.div
@@ -428,11 +392,11 @@ export default function ValidasiDetailPage() {
                   className="text-sm mt-1"
                   style={{ color: colors.secondaryDark }}
                 >
-                  Pilih metode untuk mengambil foto
+                  Ambil foto langsung dari kamera
                 </p>
               </div>
 
-              <div className="p-5 space-y-4">
+              <div className="p-5">
                 <div
                   className="rounded-xl p-6 text-center"
                   style={{
@@ -441,13 +405,13 @@ export default function ValidasiDetailPage() {
                   }}
                 >
                   <div
-                    className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3"
+                    className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
                     style={{ backgroundColor: `${colors.secondary}20` }}
                   >
-                    <Camera size={28} style={{ color: colors.secondary }} />
+                    <Camera size={36} style={{ color: colors.secondary }} />
                   </div>
                   <p
-                    className="text-sm font-medium mb-1"
+                    className="text-sm font-medium mb-2"
                     style={{ color: colors.secondaryDarkest }}
                   >
                     Ambil Foto Baru
@@ -460,43 +424,24 @@ export default function ValidasiDetailPage() {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={startCamera}
-                    className="py-2.5 rounded-xl transition flex items-center justify-center gap-2 font-medium"
-                    style={{
-                      backgroundColor: colors.secondary,
-                      color: colors.white,
-                    }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.backgroundColor =
-                        colors.secondaryDark)
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.backgroundColor = colors.secondary)
-                    }
-                  >
-                    <Camera size={18} />
-                    Buka Kamera
-                  </button>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="py-2.5 rounded-xl transition flex items-center justify-center gap-2 font-medium"
-                    style={{
-                      border: `1px solid ${colors.secondary}20`,
-                      color: colors.secondaryDark,
-                    }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.backgroundColor = `${colors.secondary}10`)
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.backgroundColor = "transparent")
-                    }
-                  >
-                    <Upload size={18} />
-                    Upload File
-                  </button>
-                </div>
+                <button
+                  onClick={startCamera}
+                  className="w-full mt-4 py-3 rounded-xl transition flex items-center justify-center gap-2 font-medium"
+                  style={{
+                    backgroundColor: colors.secondary,
+                    color: colors.white,
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.backgroundColor =
+                      colors.secondaryDark)
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.backgroundColor = colors.secondary)
+                  }
+                >
+                  <Camera size={18} />
+                  Buka Kamera
+                </button>
               </div>
 
               <div
@@ -722,14 +667,7 @@ export default function ValidasiDetailPage() {
         )}
       </AnimatePresence>
 
-      {/* Hidden inputs */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/png,image/jpeg,image/jpg,image/webp"
-        onChange={handleFileUpload}
-        className="hidden"
-      />
+      {/* Hidden canvas */}
       <canvas ref={canvasRef} className="hidden" />
 
       {/* Main Content */}
