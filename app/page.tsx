@@ -10,12 +10,9 @@ import {
   Zap,
   Activity,
   ChartArea,
-  Lightbulb,
   MessageCircleQuestion,
-  DollarSign,
 } from "lucide-react";
 import FAQSection from "@/components/FAQSection";
-import PricingSection from "@/components/PricingSection";
 import Footer from "@/components/Footer";
 import SolutionsSection from "@/components/SolutionsSection";
 
@@ -101,20 +98,6 @@ export default function HomePage() {
             all in one place
           </motion.p>
 
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, delay: 0.8 }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <a
-              href="#pricing"
-              className="px-5 py-3 bg-[#407BA7] text-white rounded-lg hover:bg-[#356a8f] transition-all duration-300 mt-15 z-10 inline-block"
-            >
-              Get Started
-            </a>
-          </motion.div>
 
           <motion.div
             initial={{ opacity: 0, x: 100, rotate: 0 }}
@@ -286,16 +269,6 @@ export default function HomePage() {
         {/* Solutions Section */}
         <SolutionsSection />
 
-        {/* Pricing Section */}
-        <section className="mt-20 px-10 min-h-[90vh]" id="pricing">
-          <div className="flex items-center justify-center mx-auto gap-2 w-32 h-10 border border-[#FF002B] rounded-2xl">
-            <DollarSign className="text-[#FF002B]" />
-            <p>Pricing</p>
-          </div>
-          <div>
-            <PricingSection />
-          </div>
-        </section>
 
         {/* FAQ Section */}
         <section className="mt-20 px-4 sm:px-6 md:px-10 min-h-[90vh]" id="faq">

@@ -18,6 +18,8 @@ import {
   Copy,
   Check,
   RefreshCw as ResetIcon,
+  EyeOff,
+  AlertCircle,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -59,8 +61,10 @@ export default function AdminsPage() {
   const [selectedAdmin, setSelectedAdmin] = useState<Admin | null>(null);
   const [deleteAdmin, setDeleteAdmin] = useState<Admin | null>(null);
   const [resetAdmin, setResetAdmin] = useState<Admin | null>(null);
+  const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showEditPassword, setShowEditPassword] = useState(false);
   const [generateRandom, setGenerateRandom] = useState(true);
   const [generatedPassword, setGeneratedPassword] = useState("");
   const [copied, setCopied] = useState(false);
@@ -72,6 +76,32 @@ export default function AdminsPage() {
   });
   const [formError, setFormError] = useState("");
   const [formSuccess, setFormSuccess] = useState("");
+
+  // Lock scroll when any modal is open
+  useEffect(() => {
+    const isAnyModalOpen = showModal || deleteAdmin || resetAdmin || errorModal;
+    
+    if (isAnyModalOpen) {
+      document.body.style.overflow = "hidden";
+      document.body.style.position = "fixed";
+      document.body.style.width = "100%";
+      document.body.style.top = `-${window.scrollY}px`;
+    } else {
+      const scrollY = document.body.style.top;
+      document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.width = "";
+      document.body.style.top = "";
+      window.scrollTo(0, parseInt(scrollY || "0") * -1);
+    }
+
+    return () => {
+      document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.width = "";
+      document.body.style.top = "";
+    };
+  }, [showModal, deleteAdmin, resetAdmin, errorModal]);
 
   const fetchAdmins = useCallback(async () => {
     try {
@@ -157,7 +187,7 @@ export default function AdminsPage() {
     setGeneratedPassword("");
     setFormError("");
     setFormSuccess("");
-    setShowPassword(false);
+    setShowEditPassword(false);
     setShowModal(true);
   };
 
@@ -199,11 +229,15 @@ export default function AdminsPage() {
         if (modalMode === "add" && data.isRandomGenerated) {
           setGeneratedPassword(data.password);
           setFormSuccess(`${data.message}\nPassword: ${data.password}`);
+        } else if (data.isRandomGenerated) {
+          setGeneratedPassword(data.newPassword);
+          setFormSuccess(`Password berhasil direset!\nPassword baru: ${data.newPassword}`);
+          setResetAdmin(null);
         } else {
           setFormSuccess(data.message);
         }
         
-        if (modalMode === "add" && data.isRandomGenerated) {
+        if ((modalMode === "add" && data.isRandomGenerated) || data.isRandomGenerated) {
           setActionLoading(false);
         } else {
           setTimeout(() => {
@@ -239,12 +273,23 @@ export default function AdminsPage() {
         setGeneratedPassword(data.newPassword);
         setFormSuccess(`Password berhasil direset!\nPassword baru: ${data.newPassword}`);
         setResetAdmin(null);
+        setShowModal(true);
+        setModalMode("add");
+        setGeneratedPassword(data.newPassword);
       } else {
-        alert(data.error);
+        setErrorModal({
+          title: "Gagal Reset Password",
+          message: data.error || "Gagal mereset password",
+        });
+        setResetAdmin(null);
       }
     } catch (err) {
-      alert("Gagal mereset password");
-      console.error(err);
+      console.error("Failed to reset password:", err);
+      setErrorModal({
+        title: "Gagal Reset Password",
+        message: "Terjadi kesalahan saat mereset password",
+      });
+      setResetAdmin(null);
     } finally {
       setActionLoading(false);
     }
@@ -262,11 +307,17 @@ export default function AdminsPage() {
         await fetchAdmins();
         setDeleteAdmin(null);
       } else {
-        alert(data.error);
+        setErrorModal({
+          title: "Gagal Hapus Admin",
+          message: data.error || "Gagal menghapus admin",
+        });
       }
     } catch (err) {
-      alert("Gagal menghapus admin");
-      console.error(err);
+      console.error("Failed to delete admin:", err);
+      setErrorModal({
+        title: "Gagal Hapus Admin",
+        message: "Terjadi kesalahan saat menghapus admin",
+      });
     } finally {
       setActionLoading(false);
     }
@@ -291,204 +342,206 @@ export default function AdminsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Admin Instansi</h1>
-          <p className="text-gray-500 text-sm mt-1">
-            Kelola semua admin yang mengelola instansi
-          </p>
-        </div>
-        <button
-          onClick={openAddModal}
-          className="flex items-center gap-2 px-4 py-2 bg-[#800016] text-white rounded-lg hover:bg-[#A0001C] transition"
-        >
-          <Plus size={18} />
-          Tambah Admin
-        </button>
-      </div>
-
-      {/* Search & Filter */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Cari admin atau instansi..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#407BA7]"
-          />
-        </div>
-        <div className="relative">
+    <>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">Admin Instansi</h1>
+            <p className="text-gray-500 text-sm mt-1">
+              Kelola semua admin yang mengelola instansi
+            </p>
+          </div>
           <button
-            onClick={() => setShowFilter(!showFilter)}
+            onClick={openAddModal}
+            className="flex items-center gap-2 px-4 py-2 bg-[#800016] text-white rounded-lg hover:bg-[#A0001C] transition"
+          >
+            <Plus size={18} />
+            Tambah Admin
+          </button>
+        </div>
+
+        {/* Search & Filter */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Cari admin atau instansi..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#407BA7]"
+            />
+          </div>
+          <div className="relative">
+            <button
+              onClick={() => setShowFilter(!showFilter)}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+            >
+              <Filter size={16} />
+              Filter Instansi
+            </button>
+            <AnimatePresence>
+              {showFilter && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-10 p-4"
+                >
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                    Pilih Instansi
+                  </label>
+                  <select
+                    value={instanceFilter}
+                    onChange={(e) => setInstanceFilter(e.target.value)}
+                    className="w-full p-2 border border-gray-200 rounded-lg text-sm"
+                  >
+                    <option value="all">Semua Instansi</option>
+                    {instances.map((inst) => (
+                      <option key={inst.id} value={inst.id}>
+                        {inst.name}
+                      </option>
+                    ))}
+                  </select>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+          <button
+            onClick={fetchAdmins}
             className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
           >
-            <Filter size={16} />
-            Filter Instansi
+            <RefreshCw size={16} />
+            Refresh
           </button>
-          <AnimatePresence>
-            {showFilter && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-10 p-4"
-              >
-                <label className="text-sm font-medium text-gray-700 mb-1 block">
-                  Pilih Instansi
-                </label>
-                <select
-                  value={instanceFilter}
-                  onChange={(e) => setInstanceFilter(e.target.value)}
-                  className="w-full p-2 border border-gray-200 rounded-lg text-sm"
-                >
-                  <option value="all">Semua Instansi</option>
-                  {instances.map((inst) => (
-                    <option key={inst.id} value={inst.id}>
-                      {inst.name}
-                    </option>
-                  ))}
-                </select>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
-        <button
-          onClick={fetchAdmins}
-          className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
-        >
-          <RefreshCw size={16} />
-          Refresh
-        </button>
-      </div>
 
-      {/* Stats Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <p className="text-2xl font-bold text-gray-800">{admins.length}</p>
-          <p className="text-sm text-gray-500">Total Admin</p>
+        {/* Stats Summary */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <p className="text-2xl font-bold text-gray-800">{admins.length}</p>
+            <p className="text-sm text-gray-500">Total Admin</p>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <p className="text-2xl font-bold text-green-600">
+              {instances.length}
+            </p>
+            <p className="text-sm text-gray-500">Total Instansi</p>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <p className="text-2xl font-bold text-blue-600">
+              {instances.filter((i) => i.id).length}
+            </p>
+            <p className="text-sm text-gray-500">Instansi dengan Admin</p>
+          </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <p className="text-2xl font-bold text-green-600">
-            {instances.length}
-          </p>
-          <p className="text-sm text-gray-500">Total Instansi</p>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <p className="text-2xl font-bold text-blue-600">
-            {instances.filter((i) => i.id).length}
-          </p>
-          <p className="text-sm text-gray-500">Instansi dengan Admin</p>
-        </div>
-      </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Admin
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Email
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Instansi
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Bergabung
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Aksi
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filteredAdmins.length === 0 ? (
+        {/* Table */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
-                    Tidak ada data admin
-                  </td>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Admin
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Email
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Instansi
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Bergabung
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Aksi
+                  </th>
                 </tr>
-              ) : (
-                filteredAdmins.map((admin, idx) => (
-                  <motion.tr
-                    key={admin.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2, delay: idx * 0.03 }}
-                    className="hover:bg-gray-50 transition"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-[#800016]/10 text-[#800016] flex items-center justify-center font-medium">
-                          {admin.name.charAt(0).toUpperCase()}
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filteredAdmins.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                      Tidak ada data admin
+                    </td>
+                  </tr>
+                ) : (
+                  filteredAdmins.map((admin, idx) => (
+                    <motion.tr
+                      key={admin.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2, delay: idx * 0.03 }}
+                      className="hover:bg-gray-50 transition"
+                    >
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-[#800016]/10 text-[#800016] flex items-center justify-center font-medium">
+                            {admin.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-800">{admin.name}</p>
+                            <p className="text-xs text-gray-400">
+                              ID: {admin.id}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-gray-800">{admin.name}</p>
-                          <p className="text-xs text-gray-400">
-                            ID: {admin.id}
-                          </p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-1">
+                          <Mail size={14} className="text-gray-400" />
+                          <span className="text-sm text-gray-600">{admin.email}</span>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1">
-                        <Mail size={14} className="text-gray-400" />
-                        <span className="text-sm text-gray-600">{admin.email}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <Link
-                        href={`/${admin.instance_slug}`}
-                        target="_blank"
-                        className="flex items-center gap-1 hover:text-[#800016] transition"
-                      >
-                        <Building2 size={14} className="text-gray-400" />
-                        <span className="text-sm text-gray-600">{admin.instance_name}</span>
-                        <Eye size={12} className="text-gray-400" />
-                      </Link>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm text-gray-600">
-                        {new Date(admin.created_at).toLocaleDateString("id-ID")}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => openEditModal(admin)}
-                          className="p-1.5 rounded-lg hover:bg-gray-100 transition"
-                          title="Edit"
+                      </td>
+                      <td className="px-6 py-4">
+                        <Link
+                          href={`/${admin.instance_slug}`}
+                          target="_blank"
+                          className="flex items-center gap-1 hover:text-[#800016] transition"
                         >
-                          <Edit size={16} className="text-blue-500" />
-                        </button>
-                        <button
-                          onClick={() => setResetAdmin(admin)}
-                          className="p-1.5 rounded-lg hover:bg-gray-100 transition"
-                          title="Reset Password"
-                        >
-                          <ResetIcon size={16} className="text-orange-500" />
-                        </button>
-                        <button
-                          onClick={() => setDeleteAdmin(admin)}
-                          className="p-1.5 rounded-lg hover:bg-gray-100 transition"
-                          title="Hapus"
-                        >
-                          <Trash2 size={16} className="text-red-500" />
-                        </button>
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                          <Building2 size={14} className="text-gray-400" />
+                          <span className="text-sm text-gray-600">{admin.instance_name}</span>
+                          <Eye size={12} className="text-gray-400" />
+                        </Link>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm text-gray-600">
+                          {new Date(admin.created_at).toLocaleDateString("id-ID")}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => openEditModal(admin)}
+                            className="p-1.5 rounded-lg hover:bg-gray-100 transition"
+                            title="Edit"
+                          >
+                            <Edit size={16} className="text-blue-500" />
+                          </button>
+                          <button
+                            onClick={() => setResetAdmin(admin)}
+                            className="p-1.5 rounded-lg hover:bg-gray-100 transition"
+                            title="Reset Password"
+                          >
+                            <ResetIcon size={16} className="text-orange-500" />
+                          </button>
+                          <button
+                            onClick={() => setDeleteAdmin(admin)}
+                            className="p-1.5 rounded-lg hover:bg-gray-100 transition"
+                            title="Hapus"
+                          >
+                            <Trash2 size={16} className="text-red-500" />
+                          </button>
+                        </div>
+                      </td>
+                    </motion.tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -499,7 +552,7 @@ export default function AdminsPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto"
             onClick={() => !generatedPassword && setShowModal(false)}
           >
             <motion.div
@@ -507,7 +560,7 @@ export default function AdminsPage() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6"
+              className="bg-white rounded-xl shadow-xl max-w-md w-full mx-auto p-6"
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-semibold text-gray-800">
@@ -527,10 +580,10 @@ export default function AdminsPage() {
                 <div className="space-y-4">
                   <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                     <p className="text-green-700 font-medium mb-2">
-                      {modalMode === "add" ? "Admin berhasil ditambahkan!" : "Password berhasil direset!"}
+                      Password berhasil dibuat/direset!
                     </p>
                     <div className="flex items-center gap-2 mt-3">
-                      <code className="flex-1 p-2 bg-white border border-gray-200 rounded-lg font-mono text-sm">
+                      <code className="flex-1 p-2 bg-white border border-gray-200 rounded-lg font-mono text-sm break-all">
                         {generatedPassword}
                       </code>
                       <button
@@ -619,7 +672,7 @@ export default function AdminsPage() {
                             onClick={() => setShowPassword(!showPassword)}
                             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                           >
-                            {showPassword ? "👁️" : "🔒"}
+                            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                           </button>
                         </div>
                       )}
@@ -634,17 +687,17 @@ export default function AdminsPage() {
                       <div className="relative">
                         <Key className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
                         <input
-                          type={showPassword ? "text" : "password"}
+                          type={showEditPassword ? "text" : "password"}
                           value={formData.password}
                           onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                           className="w-full pl-9 pr-10 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#407BA7]"
                         />
                         <button
                           type="button"
-                          onClick={() => setShowPassword(!showPassword)}
+                          onClick={() => setShowEditPassword(!showEditPassword)}
                           className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                         >
-                          {showPassword ? "👁️" : "🔒"}
+                          {showEditPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                         </button>
                       </div>
                     </div>
@@ -708,7 +761,7 @@ export default function AdminsPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto"
             onClick={() => setResetAdmin(null)}
           >
             <motion.div
@@ -716,7 +769,7 @@ export default function AdminsPage() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6"
+              className="bg-white rounded-xl shadow-xl max-w-md w-full mx-auto p-6"
             >
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-2 rounded-full bg-orange-100">
@@ -758,7 +811,7 @@ export default function AdminsPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto"
             onClick={() => setDeleteAdmin(null)}
           >
             <motion.div
@@ -766,7 +819,7 @@ export default function AdminsPage() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6"
+              className="bg-white rounded-xl shadow-xl max-w-md w-full mx-auto p-6"
             >
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-2 rounded-full bg-red-100">
@@ -800,6 +853,43 @@ export default function AdminsPage() {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+
+      {/* Modal Error */}
+      <AnimatePresence>
+        {errorModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto"
+            onClick={() => setErrorModal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-xl shadow-xl max-w-md w-full mx-auto p-6"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 rounded-full bg-red-100">
+                  <AlertCircle size={24} className="text-red-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800">{errorModal.title}</h3>
+              </div>
+              <p className="text-gray-600 mb-6">{errorModal.message}</p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setErrorModal(null)}
+                  className="px-4 py-2 bg-[#800016] text-white rounded-lg hover:bg-[#A0001C] transition"
+                >
+                  Tutup
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

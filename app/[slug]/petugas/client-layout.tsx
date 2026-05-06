@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
@@ -17,9 +17,14 @@ import {
   ChevronLeft,
   ChevronRight,
   Bell,
+  CheckCircle,
+  XCircle,
+  Info,
+  AlertCircle,
 } from "lucide-react";
 import Image from "next/image";
 import { signOut } from "next-auth/react";
+import { getPusherClient } from "@/lib/pusher/client";
 
 const allMenuItems = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -30,15 +35,56 @@ const allMenuItems = [
   { name: "History Hari Ini", href: "/history", icon: History },
 ];
 
+interface Notification {
+  id: number;
+  title: string;
+  message: string;
+  type: "info" | "success" | "warning" | "error";
+  read: boolean;
+  createdAt: string;
+  guestId?: number;
+}
+
+interface NewGuestData {
+  guestId: number;
+  name: string;
+  institution: string;
+  purpose: string;
+  createdAt: string;
+}
+
+interface GuestUpdatedData {
+  guestId: number;
+  status: string;
+  name: string;
+  message: string;
+}
+
+interface NotificationData {
+  id: number;
+  title: string;
+  message: string;
+  type: "info" | "success" | "warning" | "error";
+  read: boolean;
+  createdAt: string;
+  guestId?: number;
+}
+
+interface ToastState {
+  message: string;
+  type: string;
+  guestId?: number;
+}
+
 interface PetugasClientLayoutProps {
   children: React.ReactNode;
+  instanceId: number;
   slug: string;
   instanceName: string;
   instanceLogo: string | null;
   petugasName: string;
   petugasEmail: string;
   userRole: string | null;
-  // Tambahkan prop enableCheckout dari server
   enableCheckout?: boolean;
 }
 
@@ -47,19 +93,25 @@ export default function PetugasClientLayout({
   slug,
   instanceName,
   instanceLogo,
+  instanceId,
   petugasName,
   petugasEmail,
   enableCheckout: initialEnableCheckout,
 }: PetugasClientLayoutProps) {
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  // Set default ke false saat pertama render, baru update jika ada data dari server
   const [enableCheckout, setEnableCheckout] = useState(initialEnableCheckout ?? false);
   const [loading, setLoading] = useState(true);
+  
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [toast, setToast] = useState<ToastState | null>(null);
+  
   const pathname = usePathname();
 
-  // Ambil inisial untuk avatar
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -69,15 +121,20 @@ export default function PetugasClientLayout({
       .slice(0, 2);
   };
 
-  // Fetch checkout setting hanya jika tidak ada initial value dari server
+  const showToast = (message: string, type: string = "info", guestId?: number) => {
+    setToast({ message, type, guestId });
+    setTimeout(() => setToast(null), 5000);
+  };
+
   useEffect(() => {
     const fetchSettings = async () => {
-      // Jika sudah ada dari server, tidak perlu fetch lagi
       if (initialEnableCheckout !== undefined) {
         setEnableCheckout(initialEnableCheckout);
         setLoading(false);
         return;
       }
+      console.log("CLIENT INSTANCE:", instanceId);
+console.log("CLIENT CHANNEL:", `instance-${instanceId}-petugas`);
 
       try {
         const res = await fetch("/api/petugas/settings");
@@ -94,13 +151,75 @@ export default function PetugasClientLayout({
     fetchSettings();
   }, [initialEnableCheckout]);
 
-  // Filter menu items based on enableCheckout - langsung saat render
-  // Jika masih loading, gunakan false sebagai default (Tamu Berkunjung tidak muncul)
+  useEffect(() => {
+    const pusher = getPusherClient();
+    if (!pusher) return;
+    
+
+    const channelName = `instance-${instanceId}-petugas`;
+    const channel = pusher.subscribe(channelName);
+    
+    channel.bind('new-guest', (data: NewGuestData) => {
+      const message = `Tamu baru: ${data.name} dari ${data.institution || 'Umum'}`;
+      showToast(message, 'info', data.guestId);
+      
+      const newNotification: Notification = {
+        id: Date.now(),
+        title: 'Tamu Baru Mendaftar',
+        message: `${data.name} dari ${data.institution || 'Umum'} telah mendaftar`,
+        type: 'info',
+        read: false,
+        createdAt: new Date().toISOString(),
+        guestId: data.guestId,
+      };
+      setNotifications(prev => [newNotification, ...prev]);
+      setUnreadCount(prev => prev + 1);
+    });
+
+    channel.bind('guest-updated', (data: GuestUpdatedData) => {
+      showToast(data.message, data.status === 'active' ? 'success' : 'warning', data.guestId);
+      
+      const newNotification: Notification = {
+        id: Date.now(),
+        title: data.status === 'active' ? 'Tamu Divalidasi' : data.status === 'rejected' ? 'Tamu Ditolak' : 'Status Diubah',
+        message: data.message,
+        type: data.status === 'active' ? 'success' : data.status === 'rejected' ? 'error' : 'warning',
+        read: false,
+        createdAt: new Date().toISOString(),
+        guestId: data.guestId,
+      };
+      setNotifications(prev => [newNotification, ...prev]);
+      setUnreadCount(prev => prev + 1);
+    });
+
+    channel.bind('notification', (data: NotificationData) => {
+      showToast(data.message, data.type, data.guestId);
+      
+      const newNotification: Notification = {
+        id: data.id,
+        title: data.title,
+        message: data.message,
+        type: data.type,
+        read: false,
+        createdAt: data.createdAt,
+        guestId: data.guestId,
+      };
+      setNotifications(prev => [newNotification, ...prev]);
+      setUnreadCount(prev => prev + 1);
+    });
+    console.log("CLIENT CHANNEL:", `instance-${instanceId}-petugas`);
+
+    return () => {
+      channel.unbind_all();
+      pusher.unsubscribe(channelName);
+    };
+    
+  }, [instanceId]);
+
   const menuItems = (loading ? false : enableCheckout) 
     ? allMenuItems 
     : allMenuItems.filter((item) => item.name !== "Tamu Berkunjung");
 
-  // Deteksi ukuran layar
   useEffect(() => {
     const checkScreen = () => {
       const mobile = window.innerWidth < 768;
@@ -146,8 +265,93 @@ export default function PetugasClientLayout({
     return pathname.startsWith(getHref(href));
   };
 
+  const markAsRead = (notificationId: number) => {
+    setNotifications(prev => 
+      prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+    );
+    setUnreadCount(prev => Math.max(0, prev - 1));
+  };
+
+  const markAllAsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setUnreadCount(0);
+  };
+
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case 'success':
+        return <CheckCircle size={16} className="text-green-600" />;
+      case 'error':
+        return <XCircle size={16} className="text-red-600" />;
+      case 'warning':
+        return <AlertCircle size={16} className="text-yellow-600" />;
+      default:
+        return <Info size={16} className="text-blue-600" />;
+    }
+  };
+
+  const getNotificationBg = (type: string, read: boolean) => {
+    if (read) return "hover:bg-gray-50";
+    switch (type) {
+      case 'success':
+        return "bg-green-50 hover:bg-green-100";
+      case 'error':
+        return "bg-red-50 hover:bg-red-100";
+      case 'warning':
+        return "bg-yellow-50 hover:bg-yellow-100";
+      default:
+        return "bg-blue-50 hover:bg-blue-100";
+    }
+  };
+
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, x: 100, y: -20 }}
+            animate={{ opacity: 1, x: 0, y: 0 }}
+            exit={{ opacity: 0, x: 100, y: -20 }}
+            className="fixed top-20 right-4 z-50 bg-white rounded-lg shadow-lg border-l-4 max-w-sm"
+            style={{
+              borderLeftColor: 
+                toast.type === 'success' ? '#10B981' :
+                toast.type === 'error' ? '#EF4444' :
+                toast.type === 'warning' ? '#F59E0B' : '#407BA7',
+            }}
+          >
+            <div className="p-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-full" style={{ 
+                  backgroundColor: 
+                    toast.type === 'success' ? '#D1FAE5' :
+                    toast.type === 'error' ? '#FEE2E2' :
+                    toast.type === 'warning' ? '#FEF3C7' : '#DBEAFE',
+                }}>
+                  {toast.type === 'success' && <CheckCircle size={18} className="text-green-600" />}
+                  {toast.type === 'error' && <XCircle size={18} className="text-red-600" />}
+                  {toast.type === 'warning' && <AlertCircle size={18} className="text-yellow-600" />}
+                  {toast.type === 'info' && <Bell size={18} className="text-[#407BA7]" />}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-800">Notifikasi</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{toast.message}</p>
+                </div>
+                {toast.guestId && (
+                  <button
+                    onClick={() => router.push(`/${slug}/petugas/validasi/${toast.guestId}`)}
+                    className="text-xs text-[#407BA7] hover:underline"
+                  >
+                    Lihat
+                  </button>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Overlay untuk mobile */}
       <AnimatePresence>
         {isMobile && mobileMenuOpen && (
@@ -172,10 +376,7 @@ export default function PetugasClientLayout({
           {/* Logo Instansi */}
           <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200">
             {sidebarOpen ? (
-              <Link
-                href={getHref("/")}
-                className="flex items-center gap-2"
-              >
+              <Link href={getHref("/")} className="flex items-center gap-2">
                 {instanceLogo ? (
                   <Image
                     src={instanceLogo}
@@ -368,7 +569,6 @@ export default function PetugasClientLayout({
         {/* Top Navbar */}
         <header className="bg-white shadow-sm px-4 sm:px-6 py-3 flex items-center justify-between border-b border-gray-100">
           <div className="flex items-center gap-3">
-            {/* Tombol Menu untuk mobile */}
             {isMobile && (
               <button
                 onClick={openMobileMenu}
@@ -387,11 +587,85 @@ export default function PetugasClientLayout({
               Petugas
             </span>
           </div>
+          
           <div className="flex items-center gap-2 sm:gap-4">
-            <button className="relative p-2 rounded-lg hover:bg-gray-100 transition">
-              <Bell size={20} className="text-gray-500" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#FF002B] rounded-full"></span>
-            </button>
+            {/* Notification Bell */}
+            <div className="relative">
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="relative p-2 rounded-lg hover:bg-gray-100 transition"
+              >
+                <Bell size={20} className="text-gray-500" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-medium rounded-full flex items-center justify-center px-1">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Dropdown Notifications */}
+              <AnimatePresence>
+                {showNotifications && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-lg border border-gray-200 z-50 overflow-hidden"
+                  >
+                    <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+                      <h3 className="font-semibold text-gray-800">Notifikasi</h3>
+                      {unreadCount > 0 && (
+                        <button
+                          onClick={markAllAsRead}
+                          className="text-xs text-[#407BA7] hover:underline"
+                        >
+                          Tandai semua sudah dibaca
+                        </button>
+                      )}
+                    </div>
+                    <div className="max-h-96 overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <div className="p-8 text-center text-gray-400">
+                          <Bell size={40} className="mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">Belum ada notifikasi</p>
+                        </div>
+                      ) : (
+                        notifications.map((notif) => (
+                          <div
+                            key={notif.id}
+                            onClick={() => markAsRead(notif.id)}
+                            className={`p-4 border-b border-gray-100 cursor-pointer transition ${getNotificationBg(notif.type, notif.read)}`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="p-2 rounded-full bg-white shadow-sm">
+                                {getNotificationIcon(notif.type)}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-800">{notif.title}</p>
+                                <p className="text-xs text-gray-500 mt-0.5">{notif.message}</p>
+                                <p className="text-xs text-gray-400 mt-1">
+                                  {new Date(notif.createdAt).toLocaleString('id-ID')}
+                                </p>
+                              </div>
+                              {notif.guestId && (
+                                <Link
+                                  href={`/${slug}/petugas/validasi/${notif.guestId}`}
+                                  className="text-xs text-[#407BA7] hover:underline whitespace-nowrap"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  Lihat
+                                </Link>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="text-right hidden sm:block">
                 <p className="text-sm font-medium text-gray-700">{petugasName}</p>

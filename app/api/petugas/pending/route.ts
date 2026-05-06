@@ -1,7 +1,9 @@
+// app/api/petugas/pending/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { auth } from '@/lib/auth';
 import { createActivityLog } from '@/lib/activity-log';
+import { pusherServer } from '@/lib/pusher/server';
 
 interface User {
   id: number;
@@ -109,7 +111,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, action } = body; // action: 'approve' or 'reject'
+    const { id, action } = body;
 
     if (!id || !action) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -143,6 +145,36 @@ export async function POST(request: NextRequest) {
         [getUTCNow(), currentUser.id, guestId, instanceId]
       );
 
+      // 🔥 Kirim notifikasi real-time ke petugas lain
+      try {
+        await pusherServer.trigger(
+          `instance-${instanceId}-petugas`,
+          'guest-updated',
+          {
+            guestId: guestId,
+            status: 'rejected',
+            name: guest.name,
+            message: `${guest.name} ditolak oleh ${currentUser.name}`,
+          }
+        );
+
+        await pusherServer.trigger(
+          `instance-${instanceId}-petugas`,
+          'notification',
+          {
+            id: Date.now(),
+            title: 'Tamu Ditolak',
+            message: `${guest.name} ditolak oleh ${currentUser.name}`,
+            type: 'error',
+            read: false,
+            createdAt: new Date().toISOString(),
+            guestId: guestId,
+          }
+        );
+      } catch (pusherError) {
+        console.error('Pusher error (non-critical):', pusherError);
+      }
+
       // Create activity log
       await createActivityLog({
         instance_id: instanceId,
@@ -162,26 +194,23 @@ export async function POST(request: NextRequest) {
 
     // Handle approve action
     if (action === 'approve') {
-      // Cek pengaturan checkout
       const checkoutSettings = await getCheckoutSettings(instanceId);
       const nowUTC = getUTCNow();
       
       let newStatus: string;
       let description: string;
+      let messageText: string;
       
       if (checkoutSettings.enable_checkout) {
-        // Jika checkout aktif, status = 'active' (sedang berkunjung)
         newStatus = 'active';
         description = `Memvalidasi tamu (sedang berkunjung): ${guest.name}`;
+        messageText = `Tamu berhasil divalidasi dan sedang berkunjung`;
       } else {
-        // Jika checkout nonaktif, status = 'done' (langsung selesai)
         newStatus = 'done';
         description = `Memvalidasi tamu (langsung selesai): ${guest.name}`;
+        messageText = `Tamu berhasil divalidasi (kunjungan selesai)`;
       }
 
-      // Update guest
-      // check_in_at diisi dengan waktu sekarang (UTC)
-      // check_out_at tetap NULL (akan diisi saat checkout nanti jika enable_checkout true)
       await query(
         `UPDATE guests 
          SET status = ?, 
@@ -192,7 +221,36 @@ export async function POST(request: NextRequest) {
         [newStatus, nowUTC, nowUTC, currentUser.id, guestId, instanceId]
       );
 
-      // Create activity log
+      // 🔥 Kirim notifikasi real-time ke petugas lain
+      try {
+        await pusherServer.trigger(
+          `instance-${instanceId}-petugas`,
+          'guest-updated',
+          {
+            guestId: guestId,
+            status: newStatus,
+            name: guest.name,
+            message: `${guest.name} divalidasi oleh ${currentUser.name}`,
+          }
+        );
+
+        await pusherServer.trigger(
+          `instance-${instanceId}-petugas`,
+          'notification',
+          {
+            id: Date.now(),
+            title: 'Tamu Divalidasi',
+            message: `${guest.name} divalidasi oleh ${currentUser.name}`,
+            type: 'success',
+            read: false,
+            createdAt: new Date().toISOString(),
+            guestId: guestId,
+          }
+        );
+      } catch (pusherError) {
+        console.error('Pusher error (non-critical):', pusherError);
+      }
+
       await createActivityLog({
         instance_id: instanceId,
         user_id: currentUser.id,
@@ -203,13 +261,9 @@ export async function POST(request: NextRequest) {
         new_data: { status: newStatus, check_in_at: nowUTC },
       });
 
-      const message = checkoutSettings.enable_checkout
-        ? 'Tamu berhasil divalidasi dan sedang berkunjung'
-        : 'Tamu berhasil divalidasi (kunjungan selesai)';
-
       return NextResponse.json({
         success: true,
-        message,
+        message: messageText,
       });
     }
 

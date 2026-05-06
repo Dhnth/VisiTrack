@@ -62,6 +62,7 @@ export default async function PetugasLayout({ children, params }: Props) {
         slug={slug}
         instanceName={instance.name}
         instanceLogo={instance.logo || null}
+        instanceId={instance.id}
         petugasName={petugasUser.name}
         petugasEmail={petugasUser.email}
       >

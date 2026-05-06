@@ -74,6 +74,7 @@ export default function InstancesPage() {
   const [selectedInstance, setSelectedInstance] = useState<Instance | null>(null);
   const [actionInstance, setActionInstance] = useState<Instance | null>(null);
   const [deleteInstance, setDeleteInstance] = useState<Instance | null>(null);
+  const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [newInstanceId, setNewInstanceId] = useState<number | null>(null);
@@ -88,6 +89,32 @@ export default function InstancesPage() {
   });
   const [formError, setFormError] = useState("");
   const [formSuccess, setFormSuccess] = useState("");
+
+  // Lock scroll when any modal is open
+  useEffect(() => {
+    const isAnyModalOpen = showModal || actionInstance || deleteInstance || errorModal || showSuccessModal;
+    
+    if (isAnyModalOpen) {
+      document.body.style.overflow = "hidden";
+      document.body.style.position = "fixed";
+      document.body.style.width = "100%";
+      document.body.style.top = `-${window.scrollY}px`;
+    } else {
+      const scrollY = document.body.style.top;
+      document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.width = "";
+      document.body.style.top = "";
+      window.scrollTo(0, parseInt(scrollY || "0") * -1);
+    }
+
+    return () => {
+      document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.width = "";
+      document.body.style.top = "";
+    };
+  }, [showModal, actionInstance, deleteInstance, errorModal, showSuccessModal]);
 
   const fetchInstances = useCallback(async () => {
     try {
@@ -146,7 +173,6 @@ export default function InstancesPage() {
     setModalMode("edit");
     setSelectedInstance(instance);
     
-    // Validasi untuk menghindari error jika subscription_start/subscription_end null
     const startDate = instance.subscription_start 
       ? new Date(instance.subscription_start).toISOString().split("T")[0]
       : "";
@@ -230,12 +256,21 @@ export default function InstancesPage() {
       const data = await res.json();
       if (data.success) {
         await fetchInstances();
+        setActionInstance(null);
+      } else {
+        setErrorModal({
+          title: "Gagal",
+          message: data.error || "Gagal mengubah status instansi",
+        });
       }
     } catch (err) {
       console.error("Failed to toggle instance:", err);
+      setErrorModal({
+        title: "Gagal",
+        message: "Terjadi kesalahan saat mengubah status instansi",
+      });
     } finally {
       setActionLoading(false);
-      setActionInstance(null);
     }
   };
 
@@ -251,11 +286,17 @@ export default function InstancesPage() {
         await fetchInstances();
         setDeleteInstance(null);
       } else {
-        alert(data.error);
+        setErrorModal({
+          title: "Gagal Hapus",
+          message: data.error || "Gagal menghapus instansi",
+        });
       }
     } catch (err) {
-      alert("Gagal menghapus instansi");
-      console.error(err);
+      console.error("Failed to delete instance:", err);
+      setErrorModal({
+        title: "Gagal Hapus",
+        message: "Terjadi kesalahan saat menghapus instansi",
+      });
     } finally {
       setActionLoading(false);
     }
@@ -280,257 +321,259 @@ export default function InstancesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Instansi</h1>
-          <p className="text-gray-500 text-sm mt-1">
-            Kelola semua instansi yang terdaftar
-          </p>
-        </div>
-        <button
-          onClick={openAddModal}
-          className="flex items-center gap-2 px-4 py-2 bg-[#800016] text-white rounded-lg hover:bg-[#A0001C] transition"
-        >
-          <Plus size={18} />
-          Tambah Instansi
-        </button>
-      </div>
-
-      {/* Search & Filter */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Cari instansi..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#407BA7]"
-          />
-        </div>
-        <div className="relative">
+    <>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">Instansi</h1>
+            <p className="text-gray-500 text-sm mt-1">
+              Kelola semua instansi yang terdaftar
+            </p>
+          </div>
           <button
-            onClick={() => setShowFilter(!showFilter)}
+            onClick={openAddModal}
+            className="flex items-center gap-2 px-4 py-2 bg-[#800016] text-white rounded-lg hover:bg-[#A0001C] transition"
+          >
+            <Plus size={18} />
+            Tambah Instansi
+          </button>
+        </div>
+
+        {/* Search & Filter */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Cari instansi..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#407BA7]"
+            />
+          </div>
+          <div className="relative">
+            <button
+              onClick={() => setShowFilter(!showFilter)}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+            >
+              <Filter size={16} />
+              Filter
+            </button>
+            <AnimatePresence>
+              {showFilter && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-10 p-4"
+                >
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">
+                      Status Langganan
+                    </label>
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="w-full p-2 border border-gray-200 rounded-lg text-sm"
+                    >
+                      <option value="all">Semua</option>
+                      <option value="active">Aktif</option>
+                      <option value="expired">Expired</option>
+                      <option value="trial">Trial</option>
+                    </select>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+          <button
+            onClick={fetchInstances}
             className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
           >
-            <Filter size={16} />
-            Filter
+            <RefreshCw size={16} />
+            Refresh
           </button>
-          <AnimatePresence>
-            {showFilter && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-10 p-4"
-              >
-                <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">
-                    Status Langganan
-                  </label>
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="w-full p-2 border border-gray-200 rounded-lg text-sm"
-                  >
-                    <option value="all">Semua</option>
-                    <option value="active">Aktif</option>
-                    <option value="expired">Expired</option>
-                    <option value="trial">Trial</option>
-                  </select>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
-        <button
-          onClick={fetchInstances}
-          className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
-        >
-          <RefreshCw size={16} />
-          Refresh
-        </button>
-      </div>
 
-      {/* Stats Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <p className="text-2xl font-bold text-gray-800">{instances.length}</p>
-          <p className="text-sm text-gray-500">Total Instansi</p>
+        {/* Stats Summary */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <p className="text-2xl font-bold text-gray-800">{instances.length}</p>
+            <p className="text-sm text-gray-500">Total Instansi</p>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <p className="text-2xl font-bold text-green-600">
+              {instances.filter((i) => i.subscription_status === "active").length}
+            </p>
+            <p className="text-sm text-gray-500">Instansi Aktif</p>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <p className="text-2xl font-bold text-red-600">
+              {instances.filter((i) => i.subscription_status === "expired").length}
+            </p>
+            <p className="text-sm text-gray-500">Instansi Expired</p>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <p className="text-2xl font-bold text-orange-600">
+              {instances.filter((i) => i.subscription_status === "trial").length}
+            </p>
+            <p className="text-sm text-gray-500">Instansi Trial</p>
+          </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <p className="text-2xl font-bold text-green-600">
-            {instances.filter((i) => i.subscription_status === "active").length}
-          </p>
-          <p className="text-sm text-gray-500">Instansi Aktif</p>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <p className="text-2xl font-bold text-red-600">
-            {instances.filter((i) => i.subscription_status === "expired").length}
-          </p>
-          <p className="text-sm text-gray-500">Instansi Expired</p>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <p className="text-2xl font-bold text-orange-600">
-            {instances.filter((i) => i.subscription_status === "trial").length}
-          </p>
-          <p className="text-sm text-gray-500">Instansi Trial</p>
-        </div>
-      </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Instansi
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Telepon
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Status Langganan
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Masa Aktif
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Users
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Kunjungan
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Aksi
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filteredInstances.length === 0 ? (
+        {/* Table */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
-                    Tidak ada data instansi
-                  </td>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Instansi
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Telepon
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Status Langganan
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Masa Aktif
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Users
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Kunjungan
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Aksi
+                  </th>
                 </tr>
-              ) : (
-                filteredInstances.map((instance, idx) => (
-                  <motion.tr
-                    key={instance.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2, delay: idx * 0.03 }}
-                    className="hover:bg-gray-50 transition"
-                  >
-                    <td className="px-6 py-4">
-                      <div>
-                        <p className="font-medium text-gray-800">{instance.name}</p>
-                        <p className="text-xs text-gray-400">{instance.slug}</p>
-                      </div>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filteredInstances.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                      Tidak ada data instansi
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{instance.phone}</td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[instance.subscription_status]}`}>
-                        {statusNames[instance.subscription_status]}
-                      </span>
-                      {!instance.is_active && (
-                        <span className="ml-2 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                          Nonaktif
+                  </tr>
+                ) : (
+                  filteredInstances.map((instance, idx) => (
+                    <motion.tr
+                      key={instance.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2, delay: idx * 0.03 }}
+                      className="hover:bg-gray-50 transition"
+                    >
+                      <td className="px-6 py-4">
+                        <div>
+                          <p className="font-medium text-gray-800">{instance.name}</p>
+                          <p className="text-xs text-gray-400">{instance.slug}</p>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{instance.phone}</td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[instance.subscription_status]}`}>
+                          {statusNames[instance.subscription_status]}
                         </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1">
-                        <Calendar size={14} className="text-gray-400" />
-                        <span className="text-sm text-gray-600">
-                          {instance.subscription_end 
-                            ? new Date(instance.subscription_end).toLocaleDateString("id-ID")
-                            : "-"}
-                        </span>
-                      </div>
-                      {instance.days_left !== 0 && (
-                        <p className={`text-xs mt-1 ${getDaysLeftColor(instance.days_left)}`}>
-                          {instance.days_left < 0
-                            ? "Sudah expired"
-                            : `${instance.days_left} hari lagi`}
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1">
-                        <Users size={14} className="text-gray-400" />
-                        <span className="text-sm text-gray-600">{instance.total_users}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1">
-                        <FileText size={14} className="text-gray-400" />
-                        <span className="text-sm text-gray-600">{instance.total_guests}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <Link
-                          href={`/${instance.slug}/admin`}
-                          className="p-1.5 rounded-lg hover:bg-gray-100 transition"
-                          title="Lihat Detail"
-                        >
-                          <Eye size={16} className="text-gray-500" />
-                        </Link>
-                        <button
-                          onClick={() => openEditModal(instance)}
-                          className="p-1.5 rounded-lg hover:bg-gray-100 transition"
-                          title="Edit"
-                        >
-                          <Edit size={16} className="text-blue-500" />
-                        </button>
-                        <button
-                          onClick={() => setDeleteInstance(instance)}
-                          className="p-1.5 rounded-lg hover:bg-gray-100 transition"
-                          title="Hapus"
-                        >
-                          <Trash2 size={16} className="text-red-500" />
-                        </button>
-                        <button
-                          onClick={() => setActionInstance(instance)}
-                          className="p-1.5 rounded-lg hover:bg-gray-100 transition"
-                          title={instance.is_active ? "Nonaktifkan" : "Aktifkan"}
-                        >
-                          {instance.is_active ? (
-                            <PowerOff size={16} className="text-red-500" />
-                          ) : (
-                            <Power size={16} className="text-green-500" />
-                          )}
-                        </button>
-                        <Link
-                          href={`/${instance.slug}`}
-                          target="_blank"
-                          className="p-1.5 rounded-lg hover:bg-gray-100 transition"
-                          title="Buka Instansi"
-                        >
-                          <ExternalLink size={16} className="text-gray-500" />
-                        </Link>
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                        {!instance.is_active && (
+                          <span className="ml-2 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                            Nonaktif
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-1">
+                          <Calendar size={14} className="text-gray-400" />
+                          <span className="text-sm text-gray-600">
+                            {instance.subscription_end 
+                              ? new Date(instance.subscription_end).toLocaleDateString("id-ID")
+                              : "-"}
+                          </span>
+                        </div>
+                        {instance.days_left !== 0 && (
+                          <p className={`text-xs mt-1 ${getDaysLeftColor(instance.days_left)}`}>
+                            {instance.days_left < 0
+                              ? "Sudah expired"
+                              : `${instance.days_left} hari lagi`}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-1">
+                          <Users size={14} className="text-gray-400" />
+                          <span className="text-sm text-gray-600">{instance.total_users}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-1">
+                          <FileText size={14} className="text-gray-400" />
+                          <span className="text-sm text-gray-600">{instance.total_guests}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <Link
+                            href={`/${instance.slug}/admin`}
+                            className="p-1.5 rounded-lg hover:bg-gray-100 transition"
+                            title="Lihat Detail"
+                          >
+                            <Eye size={16} className="text-gray-500" />
+                          </Link>
+                          <button
+                            onClick={() => openEditModal(instance)}
+                            className="p-1.5 rounded-lg hover:bg-gray-100 transition"
+                            title="Edit"
+                          >
+                            <Edit size={16} className="text-blue-500" />
+                          </button>
+                          <button
+                            onClick={() => setDeleteInstance(instance)}
+                            className="p-1.5 rounded-lg hover:bg-gray-100 transition"
+                            title="Hapus"
+                          >
+                            <Trash2 size={16} className="text-red-500" />
+                          </button>
+                          <button
+                            onClick={() => setActionInstance(instance)}
+                            className="p-1.5 rounded-lg hover:bg-gray-100 transition"
+                            title={instance.is_active ? "Nonaktifkan" : "Aktifkan"}
+                          >
+                            {instance.is_active ? (
+                              <PowerOff size={16} className="text-red-500" />
+                            ) : (
+                              <Power size={16} className="text-green-500" />
+                            )}
+                          </button>
+                          <Link
+                            href={`/${instance.slug}`}
+                            target="_blank"
+                            className="p-1.5 rounded-lg hover:bg-gray-100 transition"
+                            title="Buka Instansi"
+                          >
+                            <ExternalLink size={16} className="text-gray-500" />
+                          </Link>
+                        </div>
+                      </td>
+                    </motion.tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
-      {/* Modal Form - (sama seperti sebelumnya, tidak perlu diubah) */}
+      {/* Modal Form */}
       <AnimatePresence>
         {showModal && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto"
             onClick={() => setShowModal(false)}
           >
             <motion.div
@@ -538,7 +581,7 @@ export default function InstancesPage() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-auto p-6 max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-semibold text-gray-800">
@@ -652,7 +695,7 @@ export default function InstancesPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto"
             onClick={() => setActionInstance(null)}
           >
             <motion.div
@@ -660,7 +703,7 @@ export default function InstancesPage() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6"
+              className="bg-white rounded-xl shadow-xl max-w-md w-full mx-auto p-6"
             >
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-2 rounded-full bg-amber-100">
@@ -701,7 +744,7 @@ export default function InstancesPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto"
             onClick={() => setDeleteInstance(null)}
           >
             <motion.div
@@ -709,7 +752,7 @@ export default function InstancesPage() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6"
+              className="bg-white rounded-xl shadow-xl max-w-md w-full mx-auto p-6"
             >
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-2 rounded-full bg-red-100">
@@ -735,6 +778,43 @@ export default function InstancesPage() {
         )}
       </AnimatePresence>
 
+      {/* Modal Error */}
+      <AnimatePresence>
+        {errorModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto"
+            onClick={() => setErrorModal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-xl shadow-xl max-w-md w-full mx-auto p-6"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 rounded-full bg-red-100">
+                  <AlertCircle size={24} className="text-red-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800">{errorModal.title}</h3>
+              </div>
+              <p className="text-gray-600 mb-6">{errorModal.message}</p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setErrorModal(null)}
+                  className="px-4 py-2 bg-[#800016] text-white rounded-lg hover:bg-[#A0001C] transition"
+                >
+                  Tutup
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Modal Success - Arahkan Tambah Admin */}
       <AnimatePresence>
         {showSuccessModal && (
@@ -742,7 +822,7 @@ export default function InstancesPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto"
             onClick={() => setShowSuccessModal(false)}
           >
             <motion.div
@@ -750,7 +830,7 @@ export default function InstancesPage() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6"
+              className="bg-white rounded-xl shadow-xl max-w-md w-full mx-auto p-6"
             >
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-2 rounded-full bg-green-100">
@@ -774,6 +854,6 @@ export default function InstancesPage() {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </>
   );
 }

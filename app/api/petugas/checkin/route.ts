@@ -1,7 +1,9 @@
+// app/api/petugas/checkin/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { auth } from '@/lib/auth';
 import { createActivityLog } from '@/lib/activity-log';
+import { pusherServer } from '@/lib/pusher/server';
 
 interface User {
   id: number;
@@ -42,10 +44,8 @@ async function getCheckoutSettings(instanceId: number): Promise<{ enable_checkou
   };
 }
 
-// Helper function untuk mendapatkan waktu UTC dalam format MySQL datetime
 function getUTCNow(): string {
   const now = new Date();
-  // Ambil UTC time dalam format YYYY-MM-DD HH:MM:SS
   const utcYear = now.getUTCFullYear();
   const utcMonth = String(now.getUTCMonth() + 1).padStart(2, '0');
   const utcDay = String(now.getUTCDate()).padStart(2, '0');
@@ -54,11 +54,6 @@ function getUTCNow(): string {
   const utcSeconds = String(now.getUTCSeconds()).padStart(2, '0');
   
   return `${utcYear}-${utcMonth}-${utcDay} ${utcHours}:${utcMinutes}:${utcSeconds}`;
-}
-
-// Alternatif yang lebih sederhana
-function getUTCNowSimple(): string {
-  return new Date().toISOString().slice(0, 19).replace('T', ' ');
 }
 
 export async function POST(request: NextRequest) {
@@ -79,27 +74,20 @@ export async function POST(request: NextRequest) {
     }
 
     const instanceId = currentUser.instance_id;
-    const nowUTC = getUTCNow(); // Gunakan UTC
-    // Atau bisa juga: const nowUTC = getUTCNowSimple();
+    const nowUTC = getUTCNow();
     
-    // Cek pengaturan checkout
     const checkoutSettings = await getCheckoutSettings(instanceId);
     
-    // Tentukan status berdasarkan pengaturan checkout
     let status: string;
     const checkInAt: string | null = nowUTC;
     const checkOutAt: string | null = null;
     
     if (checkoutSettings.enable_checkout) {
-      // Jika checkout aktif, status = active (perlu checkout nanti)
       status = 'active';
-      // check_out_at tetap null (belum checkout)
     } else {
-      // Jika checkout nonaktif, status = done (langsung selesai)
       status = 'done';
     }
 
-    // Insert guest - Gunakan UTC untuk semua waktu
     const result = await query(
       `INSERT INTO guests 
        (instance_id, employee_id, created_by, name, nik, institution, purpose, photo_url, status, check_in_at, check_out_at, created_at, updated_at)
@@ -114,16 +102,46 @@ export async function POST(request: NextRequest) {
         purpose,
         photo_url || null,
         status,
-        checkInAt,      // UTC
-        checkOutAt,     // UTC (null)
-        nowUTC,         // created_at UTC
-        nowUTC,         // updated_at UTC
+        checkInAt,
+        checkOutAt,
+        nowUTC,
+        nowUTC,
       ]
     ) as InsertResult;
 
     const guestId = result.insertId;
 
-    // Create activity log
+    // 🔥 Kirim notifikasi real-time ke petugas lain
+    try {
+      await pusherServer.trigger(
+        `instance-${instanceId}-petugas`,
+        'new-guest',
+        {
+          guestId: guestId,
+          name: name,
+          institution: institution || 'Umum',
+          purpose: purpose,
+          createdAt: nowUTC,
+        }
+      );
+
+      await pusherServer.trigger(
+        `instance-${instanceId}-petugas`,
+        'notification',
+        {
+          id: Date.now(),
+          title: 'Tamu Baru (Input Manual)',
+          message: `${name} dari ${institution || 'Umum'} ditambahkan oleh ${currentUser.name}`,
+          type: 'info',
+          read: false,
+          createdAt: new Date().toISOString(),
+          guestId: guestId,
+        }
+      );
+    } catch (pusherError) {
+      console.error('Pusher error (non-critical):', pusherError);
+    }
+
     await createActivityLog({
       instance_id: instanceId,
       user_id: currentUser.id,

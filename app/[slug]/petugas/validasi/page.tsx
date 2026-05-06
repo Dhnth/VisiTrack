@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
@@ -18,6 +18,7 @@ import {
   Clock,
   Building,
 } from "lucide-react";
+import { getPusherClient } from "@/lib/pusher/client";
 
 interface PendingGuest {
   id: number;
@@ -36,6 +37,21 @@ interface Pagination {
   limit: number;
   total: number;
   totalPages: number;
+}
+
+interface NewGuestData {
+  guestId: number;
+  name: string;
+  institution: string;
+  purpose: string;
+  createdAt: string;
+}
+
+interface GuestUpdatedData {
+  guestId: number;
+  status: string;
+  name: string;
+  message: string;
 }
 
 // Color palette
@@ -65,21 +81,13 @@ export default function ValidasiPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
-  const [toastMessage, setToastMessage] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [instanceId, setInstanceId] = useState<number | null>(null);
 
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  const showToast = (type: "success" | "error", message: string) => {
-    setToastMessage({ type, message });
-    setTimeout(() => setToastMessage(null), 3000);
-  };
-
   const formatTimeWIB = (dateString: string) => {
     const date = new Date(dateString);
-    // Tambah 7 jam untuk WIB
     date.setHours(date.getHours() + 7);
     return date.toLocaleString("id-ID", {
       day: "numeric",
@@ -89,7 +97,24 @@ export default function ValidasiPage() {
     });
   };
 
-  const fetchData = async (page = 1) => {
+  // Fetch instance ID dari slug
+  useEffect(() => {
+    const fetchInstanceId = async () => {
+      try {
+        const res = await fetch(`/api/instance-id?slug=${slug}`);
+        const data = await res.json();
+        if (data.success) {
+          setInstanceId(data.instanceId);
+        }
+      } catch (error) {
+        console.error("Error fetching instance ID:", error);
+      }
+    };
+    fetchInstanceId();
+  }, [slug]);
+
+  const fetchData = useCallback(async (page = 1, showRefreshEffect = false) => {
+    if (showRefreshEffect) setIsRefreshing(true);
     setLoading(true);
     try {
       const urlParams = new URLSearchParams();
@@ -110,11 +135,39 @@ export default function ValidasiPage() {
       }
     } catch (error) {
       console.error("Error fetching data:", error);
-      showToast("error", "Gagal memuat data");
     } finally {
       setLoading(false);
+      if (showRefreshEffect) {
+        setTimeout(() => setIsRefreshing(false), 500);
+      }
     }
-  };
+  }, [search]);
+
+  // Real-time subscription dengan Pusher
+  useEffect(() => {
+    if (!instanceId) return;
+    
+    const pusher = getPusherClient();
+    if (!pusher) return;
+
+    const channelName = `instance-${instanceId}-petugas`;
+    const channel = pusher.subscribe(channelName);
+    
+    // Ketika ada tamu baru mendaftar
+    channel.bind('new-guest', (data: NewGuestData) => {
+      fetchData(pagination.page, true);
+    });
+    
+    // Ketika ada tamu yang divalidasi/ditolak oleh petugas lain
+    channel.bind('guest-updated', (data: GuestUpdatedData) => {
+      fetchData(pagination.page, true);
+    });
+
+    return () => {
+      channel.unbind_all();
+      pusher.unsubscribe(channelName);
+    };
+  }, [instanceId, pagination.page, fetchData]);
 
   // Live search debounce
   useEffect(() => {
@@ -132,7 +185,7 @@ export default function ValidasiPage() {
     if (pagination.page) {
       fetchData(pagination.page);
     }
-  }, [search, pagination.page]);
+  }, [search, pagination.page, fetchData]);
 
   const goToPage = (page: number) => {
     if (page >= 1 && page <= pagination.totalPages) {
@@ -147,24 +200,20 @@ export default function ValidasiPage() {
 
   return (
     <>
-      {/* Toast Notification */}
+      {/* Refresh Indicator */}
       <AnimatePresence>
-        {toastMessage && (
+        {isRefreshing && (
           <motion.div
-            initial={{ opacity: 0, y: -50 }}
+            initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -50 }}
-            className="fixed top-20 right-4 z-50 px-4 py-3 rounded-xl shadow-lg flex items-center gap-2"
-            style={{
-              backgroundColor:
-                toastMessage.type === "success"
-                  ? colors.secondary
-                  : colors.primaryLight,
-              color: colors.white,
-            }}
+            exit={{ opacity: 0, y: -10 }}
+            className="fixed top-20 right-4 z-50 bg-white rounded-lg shadow-lg px-3 py-1.5 text-xs"
+            style={{ color: colors.secondary, border: `1px solid ${colors.secondary}20` }}
           >
-            <AlertCircle size={18} />
-            <span>{toastMessage.message}</span>
+            <div className="flex items-center gap-2">
+              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-[#407BA7]"></div>
+              Memperbarui data...
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -205,6 +254,17 @@ export default function ValidasiPage() {
                   Validasi tamu yang menunggu persetujuan
                 </p>
               </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div
+              className="px-3 py-1.5 rounded-full text-sm"
+              style={{
+                backgroundColor: `${colors.secondary}15`,
+                color: colors.secondary,
+              }}
+            >
+              Total: {pagination.total} tamu
             </div>
           </div>
         </div>
@@ -304,7 +364,7 @@ export default function ValidasiPage() {
                     <div className="p-4">
                       <div className="flex gap-3">
                         <div
-                          className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0"
+                          className="w-16 h-16 rounded-xl overflow-hidden shrink-0"
                           style={{ backgroundColor: `${colors.secondary}10` }}
                         >
                           {guest.photo_url ? (

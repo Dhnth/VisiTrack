@@ -1,6 +1,8 @@
+// app/api/guest/submit/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { createActivityLog } from '@/lib/activity-log';
+import { pusherServer } from '@/lib/pusher/server';
 
 // Helper function untuk mendapatkan waktu UTC dalam format MySQL datetime
 function getUTCNow(): string {
@@ -103,11 +105,9 @@ export async function POST(request: NextRequest) {
     const nowUTC = getUTCNow();
     
     // Status selalu pending dulu (menunggu validasi petugas)
-    // check_in_at dan check_out_at diisi NULL dulu
     const status = 'pending';
     
     // Insert guest
-    // check_in_at dan check_out_at diisi NULL karena belum divalidasi
     const result = await query(
       `INSERT INTO guests 
        (instance_id, employee_id, name, nik, institution, purpose, photo_url, status, check_in_at, check_out_at, created_at, updated_at)
@@ -120,11 +120,11 @@ export async function POST(request: NextRequest) {
         institution || null,
         purpose,
         photo_url,
-        status,           // 'pending'
-        null,             // check_in_at (NULL, akan diisi saat validasi)
-        null,             // check_out_at (NULL, akan diisi saat checkout)
-        nowUTC,           // created_at
-        nowUTC,           // updated_at
+        status,
+        null,
+        null,
+        nowUTC,
+        nowUTC,
       ]
     ) as { insertId: number };
 
@@ -138,6 +138,37 @@ export async function POST(request: NextRequest) {
       'UPDATE access_token SET usage_count = usage_count + 1 WHERE id = ?',
       [tokenData.id]
     );
+
+    // 🔥 Kirim notifikasi real-time ke petugas
+    try {
+      await pusherServer.trigger(
+        `instance-${instanceId}-petugas`,
+        'new-guest',
+        {
+          guestId: result.insertId,
+          name: name,
+          institution: institution || 'Umum',
+          purpose: purpose,
+          createdAt: nowUTC,
+        }
+      );
+
+      await pusherServer.trigger(
+        `instance-${instanceId}-petugas`,
+        'notification',
+        {
+          id: Date.now(),
+          title: 'Tamu Baru Mendaftar',
+          message: `${name} dari ${institution || 'Umum'} telah mendaftar`,
+          type: 'info',
+          read: false,
+          createdAt: new Date().toISOString(),
+          guestId: result.insertId,
+        }
+      );
+    } catch (pusherError) {
+      console.error('Pusher error (non-critical):', pusherError);
+    }
 
     // Activity log
     try {
