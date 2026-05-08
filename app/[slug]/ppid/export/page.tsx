@@ -370,7 +370,7 @@ export default function PpidExportPage() {
                 className="text-sm font-medium mb-2"
                 style={{ color: colors.secondaryDarkest }}
               >
-                📋 Data yang akan diexport:
+                Data yang akan diexport:
               </p>
               <ul className="text-sm space-y-1.5" style={{ color: colors.secondaryDark }}>
                 <li>• Nama Tamu</li>
@@ -378,7 +378,9 @@ export default function PpidExportPage() {
                 <li>• Asal Instansi</li>
                 <li>• Tujuan Kunjungan</li>
                 <li>• Status</li>
+                <li>• Waktu Validasi</li>
                 <li>• Check In / Check Out</li>
+                <li>• Durasi Kunjungan</li>
                 <li>• Tanggal Kunjungan</li>
                 <li>• Karyawan Tujuan</li>
                 <li>• Departemen</li>

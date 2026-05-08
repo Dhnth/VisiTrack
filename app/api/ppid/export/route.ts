@@ -75,6 +75,7 @@ export async function GET(request: NextRequest) {
         g.purpose,
         g.status,
         g.check_in_at,
+        g.validated_at,
         g.check_out_at,
         g.created_at,
         e.name as employee_name,
@@ -92,6 +93,7 @@ export async function GET(request: NextRequest) {
       purpose: string;
       status: string;
       check_in_at: Date | null;
+      validated_at: Date | null;
       check_out_at: Date | null;
       created_at: Date;
       employee_name: string | null;
@@ -119,6 +121,7 @@ export async function GET(request: NextRequest) {
       { header: 'Departemen', key: 'department', width: 20 },
       { header: 'Status', key: 'status', width: 18 },
       { header: 'Check In', key: 'check_in', width: 20 },
+      { header: 'Waktu Validasi', key: 'validated_at', width: 20 },
       { header: 'Check Out', key: 'check_out', width: 20 },
       { header: 'Divalidasi Oleh', key: 'validated_by', width: 20 },
     ];
@@ -205,6 +208,7 @@ export async function GET(request: NextRequest) {
         department: guest.employee_department || '-',
         status: getStatusText(guest.status),
         check_in: formatDateTime(guest.check_in_at),
+        validated_at: formatDateTime(guest.validated_at),
         check_out: formatDateTime(guest.check_out_at),
         validated_by: guest.validated_by || 'System',
       });
@@ -245,10 +249,10 @@ export async function GET(request: NextRequest) {
     };
 
     // Merge summary row
-    worksheet.mergeCells(`A${worksheet.rowCount}:L${worksheet.rowCount}`);
+    worksheet.mergeCells(`A${worksheet.rowCount}:M${worksheet.rowCount}`);
 
     // Auto filter on header row
-    worksheet.autoFilter = 'A1:L1';
+    worksheet.autoFilter = 'A1:M1';
 
     // Set column styles for better readability
     worksheet.getColumn('tanggal').alignment = { horizontal: 'center', vertical: 'middle' };

@@ -26,6 +26,7 @@ interface PendingGuest {
   purpose: string;
   photo_url: string | null;
   created_at: string;
+  validated_at: string | null;
   employee_name: string | null;
   employee_department: string | null;
 }
@@ -37,6 +38,7 @@ interface ActiveGuest {
   purpose: string;
   photo_url: string | null;
   check_in_at: string;
+  validated_at: string | null;
   employee_name: string | null;
   employee_department: string | null;
 }
@@ -71,19 +73,27 @@ export default function PetugasDashboard() {
   const [loading, setLoading] = useState(true);
   const [enableCheckout, setEnableCheckout] = useState(true);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('id-ID', {
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "-";
+    const date = new Date(dateString);
+    // Tambah 7 jam manual untuk WIB
+    const wib = new Date(date.getTime() + 7 * 60 * 60 * 1000);
+    return wib.toLocaleString("id-ID", {
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
-  const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString('id-ID', {
-      hour: '2-digit',
-      minute: '2-digit',
+  const formatTime = (dateString: string | null) => {
+    if (!dateString) return "-";
+    const date = new Date(dateString);
+    // Tambah 7 jam manual untuk WIB
+    const wib = new Date(date.getTime() + 7 * 60 * 60 * 1000);
+    return wib.toLocaleTimeString("id-ID", {
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -381,7 +391,7 @@ export default function PetugasDashboard() {
                             <p className="text-xs mt-1" style={{ color: colors.secondaryDark }}>Tujuan: {guest.employee_name}</p>
                           )}
                           <p className="text-xs mt-1" style={{ color: colors.secondaryDarker }}>
-                            Check in: {formatTime(guest.check_in_at)}
+                            Validasi: {formatTime(guest.validated_at || guest.check_in_at)}
                           </p>
                         </div>
                         <div className="flex-shrink-0">

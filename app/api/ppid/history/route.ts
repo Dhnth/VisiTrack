@@ -19,6 +19,7 @@ interface HistoryGuest {
   status: string;
   photo_url: string | null;
   check_in_at: string | null;
+  validated_at: string | null;
   check_out_at: string | null;
   created_at: string;
   employee_name: string | null;
@@ -106,6 +107,7 @@ export async function GET(request: NextRequest) {
         g.status,
         g.photo_url,
         g.check_in_at,
+        g.validated_at,
         g.check_out_at,
         g.created_at,
         e.name as employee_name,

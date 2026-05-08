@@ -90,8 +90,8 @@ export async function POST(request: NextRequest) {
 
     const result = await query(
       `INSERT INTO guests 
-       (instance_id, employee_id, created_by, name, nik, institution, purpose, photo_url, status, check_in_at, check_out_at, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (instance_id, employee_id, created_by, name, nik, institution, purpose, photo_url, status, check_in_at, validated_at, check_out_at, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         instanceId,
         employee_id || null,
@@ -103,6 +103,7 @@ export async function POST(request: NextRequest) {
         photo_url || null,
         status,
         checkInAt,
+        nowUTC, // validated_at
         checkOutAt,
         nowUTC,
         nowUTC,

@@ -18,6 +18,7 @@ interface ActiveGuest {
   purpose: string;
   photo_url: string | null;
   check_in_at: string;
+  validated_at: string | null;
   employee_name: string | null;
   employee_department: string | null;
 }
@@ -74,6 +75,7 @@ export async function GET() {
         g.purpose,
         g.photo_url,
         g.check_in_at,
+        g.validated_at,
         e.name as employee_name,
         e.department as employee_department
       FROM guests g

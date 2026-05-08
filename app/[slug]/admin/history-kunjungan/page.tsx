@@ -32,6 +32,7 @@ interface Guest {
   status: string;
   photo_url: string | null;
   check_in_at: string | null;
+  validated_at: string | null;
   check_out_at: string | null;
   created_at: string;
   employee_name: string | null;
@@ -49,6 +50,7 @@ interface GuestDetail {
   status: string;
   photo_url: string | null;
   check_in_at: string | null;
+  validated_at: string | null;
   check_out_at: string | null;
   employee_name: string | null;
   employee_department: string | null;
@@ -113,6 +115,7 @@ export default function HistoryPage() {
     employee_id: '',
     status: '',
     check_in_at: '',
+    validated_at: '',
     check_out_at: '',
     photo_url: '',
   });
@@ -142,27 +145,86 @@ export default function HistoryPage() {
     return date.toISOString().slice(0, 16);
   };
 
-  // Format date for display
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('id-ID', {
+  // Format datetime ke WIB (UTC+7)
+  const formatDateTimeWIB = (dateString: string | null) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    date.setHours(date.getHours() + 7);
+    return date.toLocaleString('id-ID', {
       day: 'numeric',
-      month: 'short',
+      month: 'long',
       year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+  };
+
+  // Format tanggal ke WIB
+  const formatDateWIB = (dateString: string | null) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    date.setHours(date.getHours() + 7);
+    return date.toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+  };
+
+  // Format waktu ke WIB (tanpa detik)
+  const formatTimeWIB = (dateString: string | null) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    date.setHours(date.getHours() + 7);
+    return date.toLocaleTimeString('id-ID', {
       hour: '2-digit',
       minute: '2-digit',
     });
   };
 
-  const formatTimeWIB = (dateString: string | null) => {
+  // Format waktu ke WIB (dengan detik)
+  const formatTimeWithSecondsWIB = (dateString: string | null) => {
     if (!dateString) return '-';
     const date = new Date(dateString);
-    const wib = new Date(date.getTime() + 7 * 60 * 60 * 1000);
-    return wib.toLocaleTimeString('id-ID', {
+    date.setHours(date.getHours() + 7);
+    return date.toLocaleTimeString('id-ID', {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
-      hour12: false,
     });
+  };
+
+  // Hitung durasi kunjungan (dari validated_at ke check_out_at)
+  const getDuration = (guest: Guest) => {
+    if (!guest.validated_at) return '-';
+    
+    // Parse strings from DB as UTC by adding 'Z' if not present
+    const parseUTC = (ds: string) => {
+      if (!ds) return new Date();
+      if (ds.includes('Z') || ds.includes('+')) return new Date(ds);
+      return new Date(ds.replace(' ', 'T') + 'Z');
+    };
+
+    const start = parseUTC(guest.validated_at);
+    const end = guest.check_out_at ? parseUTC(guest.check_out_at) : new Date();
+    
+    const diffMs = end.getTime() - start.getTime();
+    if (diffMs < 0) return 'Data tidak valid';
+    
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    const diffSeconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+    
+    if (guest.check_out_at) {
+      if (diffHours > 0) return `${diffHours}j ${diffMinutes}m ${diffSeconds}s`;
+      if (diffMinutes > 0) return `${diffMinutes}m ${diffSeconds}s`;
+      return `${diffSeconds}s`;
+    } else {
+      if (diffHours > 0) return `${diffHours}j ${diffMinutes}m`;
+      if (diffMinutes > 0) return `${diffMinutes}m`;
+      return `${diffSeconds}s`;
+    }
   };
 
   // Live search with debounce
@@ -334,6 +396,7 @@ export default function HistoryPage() {
           employee_id: g.employee_id?.toString() || '',
           status: g.status || 'pending',
           check_in_at: formatDateTimeLocal(g.check_in_at),
+          validated_at: formatDateTimeLocal(g.validated_at),
           check_out_at: formatDateTimeLocal(g.check_out_at),
           photo_url: g.photo_url || '',
         });
@@ -370,6 +433,7 @@ export default function HistoryPage() {
     else payload.employee_id = null;
     if (editFormData.status) payload.status = editFormData.status;
     if (editFormData.check_in_at) payload.check_in_at = editFormData.check_in_at;
+    if (editFormData.validated_at) payload.validated_at = editFormData.validated_at;
     if (editFormData.check_out_at) payload.check_out_at = editFormData.check_out_at;
     if (editFormData.photo_url) payload.photo_url = editFormData.photo_url;
 
@@ -589,7 +653,8 @@ export default function HistoryPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tujuan</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Karyawan Tujuan</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Divalidasi</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Waktu Validasi</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Divalidasi Oleh</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aksi</th>
               </tr>
             </thead>
@@ -610,7 +675,7 @@ export default function HistoryPage() {
                     className="hover:bg-gray-50 transition"
                   >
                     <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
-                      {formatDate(guest.created_at)}
+                      {formatDateWIB(guest.created_at)}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
@@ -648,26 +713,26 @@ export default function HistoryPage() {
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusBadge[guest.status]}`}>
                         {statusText[guest.status]}
                       </span>
-                      {enableCheckout ? (
-                        <>
-                          {guest.check_in_at && guest.status === 'active' && (
-                            <p className="text-xs text-gray-400 mt-1">
-                              Check in: {formatTimeWIB(guest.check_in_at)}
-                            </p>
-                          )}
-                          {guest.check_out_at && guest.status === 'done' && (
-                            <p className="text-xs text-gray-400 mt-1">
-                              Check out: {formatTimeWIB(guest.check_out_at)}
-                            </p>
-                          )}
-                        </>
-                      ) : (
-                        guest.check_in_at && (
-                          <p className="text-xs text-gray-400 mt-1">
-                            Check in: {formatTimeWIB(guest.check_in_at)}
+                      <div className="mt-1 space-y-0.5">
+                        {guest.check_in_at && (
+                          <p className="text-[10px] text-gray-400">
+                            IN: {formatTimeWIB(guest.check_in_at)}
                           </p>
-                        )
-                      )}
+                        )}
+                        {enableCheckout && guest.check_out_at && (
+                          <p className="text-[10px] text-gray-400">
+                            OUT: {formatTimeWIB(guest.check_out_at)}
+                          </p>
+                        )}
+                        {enableCheckout && guest.validated_at && (
+                          <p className="text-[10px] font-medium text-[#407BA7]">
+                            Durasi: {getDuration(guest)}
+                          </p>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
+                      {formatDateTimeWIB(guest.validated_at)}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-500">
                       {guest.validated_by || 'System'}
@@ -911,6 +976,19 @@ export default function HistoryPage() {
                         type="datetime-local"
                         value={editFormData.check_in_at}
                         onChange={(e) => setEditFormData({ ...editFormData, check_in_at: e.target.value })}
+                        className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#407BA7]"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Waktu Validasi</label>
+                    <div className="relative">
+                      <Clock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                      <input
+                        type="datetime-local"
+                        value={editFormData.validated_at}
+                        onChange={(e) => setEditFormData({ ...editFormData, validated_at: e.target.value })}
                         className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#407BA7]"
                       />
                     </div>

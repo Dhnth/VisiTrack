@@ -140,9 +140,9 @@ export async function POST(request: NextRequest) {
     if (action === 'reject') {
       await query(
         `UPDATE guests 
-         SET status = 'rejected', updated_at = ?, created_by = ?
+         SET status = 'rejected', validated_at = ?, updated_at = ?, created_by = ?
          WHERE id = ? AND instance_id = ?`,
-        [getUTCNow(), currentUser.id, guestId, instanceId]
+        [getUTCNow(), getUTCNow(), currentUser.id, guestId, instanceId]
       );
 
       // 🔥 Kirim notifikasi real-time ke petugas lain
@@ -214,7 +214,7 @@ export async function POST(request: NextRequest) {
       await query(
         `UPDATE guests 
          SET status = ?, 
-             check_in_at = ?, 
+             validated_at = ?, 
              updated_at = ?, 
              created_by = ?
          WHERE id = ? AND instance_id = ?`,
@@ -258,7 +258,7 @@ export async function POST(request: NextRequest) {
         table_name: 'guests',
         record_id: guestId,
         description,
-        new_data: { status: newStatus, check_in_at: nowUTC },
+        new_data: { status: newStatus, validated_at: nowUTC },
       });
 
       return NextResponse.json({

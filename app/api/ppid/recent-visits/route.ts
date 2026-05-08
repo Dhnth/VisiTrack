@@ -17,6 +17,7 @@ interface RecentVisit {
   institution: string | null;
   purpose: string;
   status: string;
+  validated_at: string | null;
   created_at: string;
   employee_name: string | null;
 }
@@ -53,6 +54,7 @@ export async function GET(request: NextRequest) {
         g.institution,
         g.purpose,
         g.status,
+        g.validated_at,
         g.created_at,
         e.name as employee_name
       FROM guests g

@@ -19,6 +19,7 @@ interface GuestDetail {
   photo_url: string | null;
   status: string;
   check_in_at: string | null;
+  validated_at: string | null;
   check_out_at: string | null;
   created_at: string;
   updated_at: string;
@@ -148,11 +149,18 @@ export default function HistoryDetailPage() {
 
   // Hitung durasi kunjungan dengan benar (dalam WIB)
   const getDuration = () => {
-    if (!guest?.check_in_at) return '-';
+    if (!guest?.validated_at) return '-';
     
-    const start = new Date(guest.check_in_at);
+    // Parse strings from DB as UTC by adding 'Z' if not present
+    const parseUTC = (ds: string) => {
+      if (!ds) return new Date();
+      if (ds.includes('Z') || ds.includes('+')) return new Date(ds);
+      return new Date(ds.replace(' ', 'T') + 'Z');
+    };
+
+    const start = parseUTC(guest.validated_at);
     // Jika sudah checkout, gunakan waktu checkout, jika belum gunakan waktu sekarang
-    const end = guest.check_out_at ? new Date(guest.check_out_at) : new Date();
+    const end = guest.check_out_at ? parseUTC(guest.check_out_at) : new Date();
     
     const diffMs = end.getTime() - start.getTime();
     
@@ -289,7 +297,7 @@ export default function HistoryDetailPage() {
                 <div className="flex justify-between py-2 border-b border-gray-100">
                   <span className="text-gray-500">Check In</span>
                   <span className="font-medium text-gray-700">
-                    {formatDateTimeWIB(guest.check_in_at || guest.created_at)}
+                    {guest.check_in_at ? formatDateTimeWIB(guest.check_in_at) : formatDateTimeWIB(guest.created_at)}
                   </span>
                 </div>
                 
@@ -449,7 +457,7 @@ export default function HistoryDetailPage() {
                 </div>
                 <div>
                   <label className="text-xs text-gray-400 uppercase tracking-wider">Waktu Validasi</label>
-                  <p className="text-gray-800 mt-1">{formatDateTimeWIB(guest.check_in_at || guest.created_at)}</p>
+                  <p className="text-gray-800 mt-1">{guest.validated_at ? formatDateTimeWIB(guest.validated_at) : '-'}</p>
                 </div>
                 <div className="md:col-span-2">
                   <label className="text-xs text-gray-400 uppercase tracking-wider">Catatan</label>

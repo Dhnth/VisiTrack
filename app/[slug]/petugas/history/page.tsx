@@ -35,6 +35,7 @@ interface HistoryGuest {
   status: string;
   photo_url: string | null;
   check_in_at: string | null;
+  validated_at: string | null;
   check_out_at: string | null;
   created_at: string;
   employee_name: string | null;
@@ -114,6 +115,7 @@ export default function PetugasHistoryPage() {
     employee_id: "",
     status: "",
     check_in_at: "",
+    validated_at: "",
     check_out_at: "",
   });
   const [employeesList, setEmployeesList] = useState<Employee[]>([]);
@@ -155,6 +157,38 @@ export default function PetugasHistoryPage() {
       second: "2-digit",
       hour12: false,
     });
+  };
+
+  // Hitung durasi kunjungan (dari validated_at ke check_out_at)
+  const getDuration = (guest: HistoryGuest) => {
+    if (!guest.validated_at) return "-";
+
+    // Parse strings from DB as UTC by adding 'Z' if not present
+    const parseUTC = (ds: string) => {
+      if (!ds) return new Date();
+      if (ds.includes("Z") || ds.includes("+")) return new Date(ds);
+      return new Date(ds.replace(" ", "T") + "Z");
+    };
+
+    const start = parseUTC(guest.validated_at);
+    const end = guest.check_out_at ? parseUTC(guest.check_out_at) : new Date();
+
+    const diffMs = end.getTime() - start.getTime();
+    if (diffMs < 0) return "Data tidak valid";
+
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    const diffSeconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+
+    if (guest.check_out_at) {
+      if (diffHours > 0) return `${diffHours}j ${diffMinutes}m ${diffSeconds}s`;
+      if (diffMinutes > 0) return `${diffMinutes}m ${diffSeconds}s`;
+      return `${diffSeconds}s`;
+    } else {
+      if (diffHours > 0) return `${diffHours}j ${diffMinutes}m`;
+      if (diffMinutes > 0) return `${diffMinutes}m`;
+      return `${diffSeconds}s`;
+    }
   };
 
   // Fetch history (hanya untuk hari ini)
@@ -215,6 +249,7 @@ export default function PetugasHistoryPage() {
           employee_id: g.employee_id?.toString() || "",
           status: g.status || "done",
           check_in_at: formatDateTimeLocal(g.check_in_at),
+          validated_at: formatDateTimeLocal(g.validated_at),
           check_out_at: formatDateTimeLocal(g.check_out_at),
         });
         setShowEditModal(true);
@@ -241,6 +276,7 @@ export default function PetugasHistoryPage() {
           : null,
         status: editFormData.status,
         check_in_at: editFormData.check_in_at,
+        validated_at: editFormData.validated_at,
         check_out_at: editFormData.check_out_at,
       };
 
@@ -523,36 +559,66 @@ export default function PetugasHistoryPage() {
                       <option value="rejected">Ditolak</option>
                     </select>
                   </div>
-                  <div>
-                    <label
-                      className="block text-sm font-medium mb-1"
-                      style={{ color: colors.secondaryDarkest }}
-                    >
-                      Check In
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={editFormData.check_in_at}
-                      onChange={(e) =>
-                        setEditFormData({
-                          ...editFormData,
-                          check_in_at: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2"
-                      style={{
-                        border: `1px solid ${colors.secondary}20`,
-                        color: colors.secondaryDarkest,
-                        backgroundColor: colors.white,
-                      }}
-                      onFocus={(e) =>
-                        (e.currentTarget.style.borderColor = colors.secondary)
-                      }
-                      onBlur={(e) =>
-                        (e.currentTarget.style.borderColor = `${colors.secondary}20`)
-                      }
-                    />
-                  </div>
+                      <div>
+                        <label
+                          className="block text-sm font-medium mb-1"
+                          style={{ color: colors.secondaryDarkest }}
+                        >
+                          Check In
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={editFormData.check_in_at}
+                          onChange={(e) =>
+                            setEditFormData({
+                              ...editFormData,
+                              check_in_at: e.target.value,
+                            })
+                          }
+                          className="w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2"
+                          style={{
+                            border: `1px solid ${colors.secondary}20`,
+                            color: colors.secondaryDarkest,
+                            backgroundColor: colors.white,
+                          }}
+                          onFocus={(e) =>
+                            (e.currentTarget.style.borderColor = colors.secondary)
+                          }
+                          onBlur={(e) =>
+                            (e.currentTarget.style.borderColor = `${colors.secondary}20`)
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label
+                          className="block text-sm font-medium mb-1"
+                          style={{ color: colors.secondaryDarkest }}
+                        >
+                          Waktu Validasi
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={editFormData.validated_at}
+                          onChange={(e) =>
+                            setEditFormData({
+                              ...editFormData,
+                              validated_at: e.target.value,
+                            })
+                          }
+                          className="w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2"
+                          style={{
+                            border: `1px solid ${colors.secondary}20`,
+                            color: colors.secondaryDarkest,
+                            backgroundColor: colors.white,
+                          }}
+                          onFocus={(e) =>
+                            (e.currentTarget.style.borderColor = colors.secondary)
+                          }
+                          onBlur={(e) =>
+                            (e.currentTarget.style.borderColor = `${colors.secondary}20`)
+                          }
+                        />
+                      </div>
                   {enableCheckout && (
                     <div className="md:col-span-2">
                       <label
@@ -868,6 +934,12 @@ export default function PetugasHistoryPage() {
                         className="px-4 py-3 text-left text-xs font-medium uppercase"
                         style={{ color: colors.secondaryDark }}
                       >
+                        Waktu Validasi
+                      </th>
+                      <th
+                        className="px-4 py-3 text-left text-xs font-medium uppercase"
+                        style={{ color: colors.secondaryDark }}
+                      >
                         Nama Tamu
                       </th>
                       <th
@@ -923,6 +995,12 @@ export default function PetugasHistoryPage() {
                               : "-"}
                           </td>
                         )}
+                        <td
+                          className="px-4 py-3 text-sm whitespace-nowrap"
+                          style={{ color: colors.secondaryDark }}
+                        >
+                          {formatTimeWIB(guest.validated_at)}
+                        </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <div
@@ -974,6 +1052,14 @@ export default function PetugasHistoryPage() {
                           >
                             {statusText[guest.status]}
                           </span>
+                          {enableCheckout && guest.validated_at && (
+                            <p
+                              className="text-[10px] font-medium mt-1"
+                              style={{ color: colors.secondary }}
+                            >
+                              Durasi: {getDuration(guest)}
+                            </p>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <button

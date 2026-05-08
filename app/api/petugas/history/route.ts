@@ -25,6 +25,7 @@ interface Guest {
   employee_id: number | null;
   employee_name: string | null;
   employee_department: string | null;
+  validated_at: string | null;
   validated_by: string | null;
 }
 
@@ -76,6 +77,7 @@ export async function GET(request: NextRequest) {
           g.photo_url,
           g.status,
           g.check_in_at,
+          g.validated_at,
           g.check_out_at,
           g.created_at,
           g.employee_id,
@@ -164,6 +166,7 @@ export async function GET(request: NextRequest) {
         g.photo_url,
         g.status,
         g.check_in_at,
+        g.validated_at,
         g.check_out_at,
         g.created_at,
         e.name as employee_name,
@@ -209,7 +212,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, name, institution, purpose, employee_id, status, check_in_at, check_out_at } = body;
+    const { id, name, institution, purpose, employee_id, status, check_in_at, validated_at, check_out_at } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Guest ID required' }, { status: 400 });
@@ -265,6 +268,10 @@ export async function PATCH(request: NextRequest) {
       updateFields.push('check_in_at = ?');
       updateParams.push(check_in_at || null);
     }
+    if (validated_at !== undefined) {
+      updateFields.push('validated_at = ?');
+      updateParams.push(validated_at || null);
+    }
     if (check_out_at !== undefined) {
       updateFields.push('check_out_at = ?');
       updateParams.push(check_out_at || null);
@@ -293,7 +300,7 @@ export async function PATCH(request: NextRequest) {
       table_name: 'guests',
       record_id: guestId,
       description: `Mengupdate data kunjungan tamu: ${oldGuest[0].name}`,
-      new_data: { name, institution, purpose, employee_id, status, check_in_at, check_out_at },
+      new_data: { name, institution, purpose, employee_id, status, check_in_at, validated_at, check_out_at },
     });
 
     return NextResponse.json({

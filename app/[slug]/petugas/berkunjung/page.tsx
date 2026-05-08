@@ -26,6 +26,7 @@ interface ActiveGuest {
   purpose: string;
   photo_url: string | null;
   check_in_at: string;
+  validated_at: string | null;
   employee_name: string | null;
   employee_department: string | null;
 }
@@ -81,7 +82,8 @@ export default function BerkunjungPage() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const formatTimeWIB = (dateString: string) => {
+  const formatTimeWIB = (dateString: string | null) => {
+    if (!dateString) return "-";
     const date = new Date(dateString);
     date.setHours(date.getHours() + 7);
     return date.toLocaleString("id-ID", {
@@ -90,6 +92,31 @@ export default function BerkunjungPage() {
       hour: "2-digit",
       minute: "2-digit",
     });
+  };
+
+  // Hitung durasi kunjungan (dari validated_at ke sekarang)
+  const getDuration = (guest: ActiveGuest) => {
+    const startTime = guest.validated_at || guest.check_in_at;
+    if (!startTime) return "-";
+
+    // Parse strings from DB as UTC by adding 'Z' if not present
+    const parseUTC = (ds: string) => {
+      if (!ds) return new Date();
+      if (ds.includes("Z") || ds.includes("+")) return new Date(ds);
+      return new Date(ds.replace(" ", "T") + "Z");
+    };
+
+    const start = parseUTC(startTime);
+    const end = new Date(); // Karena masih berkunjung
+
+    const diffMs = end.getTime() - start.getTime();
+    if (diffMs < 0) return "Data tidak valid";
+
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+    if (diffHours > 0) return `${diffHours} jam ${diffMinutes} menit`;
+    return `${diffMinutes} menit`;
   };
 
   // Cek setting checkout, redirect jika disabled
@@ -532,12 +559,21 @@ export default function BerkunjungPage() {
                       className="mt-3 pt-3 flex items-center justify-between"
                       style={{ borderTop: `1px solid ${colors.secondary}10` }}
                     >
-                      <div
-                        className="flex items-center gap-1 text-xs"
-                        style={{ color: colors.secondaryDark }}
-                      >
-                        <Clock size={12} />
-                        <span>Check in: {formatTimeWIB(guest.check_in_at)}</span>
+                      <div className="flex flex-col gap-0.5">
+                        <div
+                          className="flex items-center gap-1 text-[10px]"
+                          style={{ color: colors.secondaryDark }}
+                        >
+                          <Clock size={10} />
+                          <span>Validasi: {formatTimeWIB(guest.validated_at || guest.check_in_at)}</span>
+                        </div>
+                        <div
+                          className="flex items-center gap-1 text-[10px] font-medium"
+                          style={{ color: colors.secondary }}
+                        >
+                          <Clock size={10} />
+                          <span>Durasi: {getDuration(guest)}</span>
+                        </div>
                       </div>
                       <button
                         onClick={() => setShowCheckoutModal(guest)}

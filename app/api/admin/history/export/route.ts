@@ -70,6 +70,7 @@ export async function GET(request: Request) {
       g.purpose,
       g.status,
       g.check_in_at,
+      g.validated_at,
       g.check_out_at,
       g.created_at,
       e.name as employee_name,
@@ -86,6 +87,7 @@ export async function GET(request: Request) {
     purpose: string;
     status: string;
     check_in_at: Date | null;
+    validated_at: Date | null;
     check_out_at: Date | null;
     created_at: Date;
     employee_name: string;
@@ -106,6 +108,7 @@ export async function GET(request: Request) {
     { header: 'Departemen', key: 'department', width: 20 },
     { header: 'Status', key: 'status', width: 15 },
     { header: 'Check In', key: 'check_in', width: 20 },
+    { header: 'Waktu Validasi', key: 'validated_at', width: 20 },
     { header: 'Check Out', key: 'check_out', width: 20 },
     { header: 'Divalidasi Oleh', key: 'validated_by', width: 20 },
   ];
@@ -158,6 +161,7 @@ export async function GET(request: Request) {
       department: guest.employee_department,
       status: getStatusText(guest.status),
       check_in: formatDateTime(guest.check_in_at),
+      validated_at: formatDateTime(guest.validated_at),
       check_out: formatDateTime(guest.check_out_at),
       validated_by: guest.validated_by || 'System',
     });
@@ -198,7 +202,7 @@ export async function GET(request: Request) {
   };
 
   // Auto filter
-  worksheet.autoFilter = 'A1:K1';
+  worksheet.autoFilter = 'A1:L1';
 
 
   const buffer = await workbook.xlsx.writeBuffer();

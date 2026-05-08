@@ -34,6 +34,7 @@ interface GuestDetail {
   photo_url: string | null;
   status: string;
   created_at: string;
+  validated_at: string | null;
   employee_name: string | null;
   employee_department: string | null;
 }
@@ -909,18 +910,35 @@ export default function ValidasiDetailPage() {
                     {guest.purpose}
                   </span>
                 </div>
-                <div className="flex justify-between py-2">
+                <div
+                  className="flex justify-between py-2"
+                  style={{ borderBottom: `1px solid ${colors.secondary}10` }}
+                >
                   <span
                     className="text-sm"
                     style={{ color: colors.secondaryDark }}
                   >
-                    Tanggal/Waktu
+                    Tanggal/Waktu Submit
                   </span>
                   <span
                     className="text-sm"
                     style={{ color: colors.secondaryDarkest }}
                   >
                     {formatDateTimeWIB(guest.created_at)}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2">
+                  <span
+                    className="text-sm"
+                    style={{ color: colors.secondaryDark }}
+                  >
+                    Waktu Validasi
+                  </span>
+                  <span
+                    className="text-sm font-medium"
+                    style={{ color: colors.secondaryDarkest }}
+                  >
+                    {formatDateTimeWIB(guest.validated_at)}
                   </span>
                 </div>
               </div>

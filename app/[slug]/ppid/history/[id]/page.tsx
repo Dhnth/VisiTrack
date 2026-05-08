@@ -43,6 +43,7 @@ interface GuestDetail {
   photo_url: string | null;
   status: string;
   check_in_at: string | null;
+  validated_at: string | null;
   check_out_at: string | null;
   created_at: string;
   updated_at: string;
@@ -170,21 +171,29 @@ export default function PpidHistoryDetailPage() {
 
   // Hitung durasi kunjungan dengan benar
   const getDuration = () => {
-    if (!guest?.check_in_at) return "-";
-    
-    const start = new Date(guest.check_in_at);
+    const startTime = guest?.validated_at || guest?.check_in_at;
+    if (!startTime) return "-";
+
+    // Parse strings from DB as UTC by adding 'Z' if not present
+    const parseUTC = (ds: string) => {
+      if (!ds) return new Date();
+      if (ds.includes("Z") || ds.includes("+")) return new Date(ds);
+      return new Date(ds.replace(" ", "T") + "Z");
+    };
+
+    const start = parseUTC(startTime);
     // Jika sudah checkout, gunakan waktu checkout, jika belum gunakan waktu sekarang
-    const end = guest.check_out_at ? new Date(guest.check_out_at) : new Date();
-    
+    const end = guest.check_out_at ? parseUTC(guest.check_out_at) : new Date();
+
     const diffMs = end.getTime() - start.getTime();
-    
+
     // Validasi jika diffMs negatif (data tidak valid)
     if (diffMs < 0) return "Data tidak valid";
-    
+
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
     const diffSeconds = Math.floor((diffMs % (1000 * 60)) / 1000);
-    
+
     if (guest.check_out_at) {
       // Sudah selesai, tampilkan durasi lengkap
       if (diffHours > 0) {
@@ -377,6 +386,16 @@ export default function PpidHistoryDetailPage() {
               </div>
 
               <div className="mt-4 space-y-3 text-sm">
+                {/* Validation Time */}
+                <div className="flex justify-between py-2 border-b" style={{ borderColor: `${colors.secondary}10` }}>
+                  <span className="text-sm" style={{ color: colors.secondaryDark }}>
+                    Waktu Validasi
+                  </span>
+                  <span className="font-medium" style={{ color: colors.secondaryDarkest }}>
+                    {formatDateTimeWIB(guest.validated_at)}
+                  </span>
+                </div>
+
                 {/* Check In Time */}
                 <div className="flex justify-between py-2 border-b" style={{ borderColor: `${colors.secondary}10` }}>
                   <span className="text-sm" style={{ color: colors.secondaryDark }}>
@@ -630,7 +649,7 @@ export default function PpidHistoryDetailPage() {
                     Waktu Validasi
                   </label>
                   <p className="mt-1" style={{ color: colors.secondaryDarkest }}>
-                    {formatDateTimeWIB(guest.check_in_at || guest.created_at)}
+                    {formatDateTimeWIB(guest.validated_at)}
                   </p>
                 </div>
                 <div className="md:col-span-2">

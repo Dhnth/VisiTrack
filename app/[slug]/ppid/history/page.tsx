@@ -45,6 +45,7 @@ interface HistoryGuest {
   status: string;
   photo_url: string | null;
   check_in_at: string | null;
+  validated_at: string | null;
   check_out_at: string | null;
   created_at: string;
   employee_name: string | null;
@@ -97,6 +98,38 @@ const formatTimeOnly = (dateString: string | null) => {
     hour: "2-digit",
     minute: "2-digit",
   });
+};
+
+// Hitung durasi kunjungan (dari validated_at ke check_out_at)
+const getDuration = (guest: HistoryGuest) => {
+  if (!guest.validated_at) return "-";
+
+  // Parse strings from DB as UTC by adding 'Z' if not present
+  const parseUTC = (ds: string) => {
+    if (!ds) return new Date();
+    if (ds.includes("Z") || ds.includes("+")) return new Date(ds);
+    return new Date(ds.replace(" ", "T") + "Z");
+  };
+
+  const start = parseUTC(guest.validated_at);
+  const end = guest.check_out_at ? parseUTC(guest.check_out_at) : new Date();
+
+  const diffMs = end.getTime() - start.getTime();
+  if (diffMs < 0) return "Data tidak valid";
+
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+  const diffSeconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+
+  if (guest.check_out_at) {
+    if (diffHours > 0) return `${diffHours}j ${diffMinutes}m ${diffSeconds}s`;
+    if (diffMinutes > 0) return `${diffMinutes}m ${diffSeconds}s`;
+    return `${diffSeconds}s`;
+  } else {
+    if (diffHours > 0) return `${diffHours}j ${diffMinutes}m`;
+    if (diffMinutes > 0) return `${diffMinutes}m`;
+    return `${diffSeconds}s`;
+  }
 };
 
 export default function PpidHistoryPage() {
@@ -463,13 +496,19 @@ export default function PpidHistoryPage() {
                       className="px-4 py-3 text-left text-xs font-medium uppercase"
                       style={{ color: colors.secondaryDark }}
                     >
+                      Waktu Validasi
+                    </th>
+                    <th
+                      className="px-4 py-3 text-left text-xs font-medium uppercase"
+                      style={{ color: colors.secondaryDark }}
+                    >
                       Status
                     </th>
                     <th
                       className="px-4 py-3 text-left text-xs font-medium uppercase"
                       style={{ color: colors.secondaryDark }}
                     >
-                      Waktu
+                      Check-in/out
                     </th>
                     <th
                       className="px-4 py-3 text-left text-xs font-medium uppercase"
@@ -550,38 +589,38 @@ export default function PpidHistoryPage() {
                           </p>
                         )}
                       </td>
+                      <td className="px-4 py-3 text-sm whitespace-nowrap" style={{ color: colors.secondaryDark }}>
+                        {formatTimeWIB(guest.validated_at)}
+                      </td>
                       <td className="px-4 py-3">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${statusBadge[guest.status]}`}
                         >
                           {statusText[guest.status]}
                         </span>
+                        {enableCheckout && guest.validated_at && (
+                          <p className="text-[10px] font-medium mt-1 text-[#407BA7]">
+                            Durasi: {getDuration(guest)}
+                          </p>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-sm" style={{ color: colors.secondaryDark }}>
                         {/* Menampilkan check-in dan check-out dengan benar */}
                         {enableCheckout ? (
                           <>
-                            {guest.check_in_at && guest.status === "active" && (
+                            {guest.check_in_at && (
                               <div className="flex items-center gap-1">
                                 <Clock size={12} />
                                 <span className="text-xs">
-                                  Check in: {formatTimeOnly(guest.check_in_at)}
+                                  IN: {formatTimeOnly(guest.check_in_at)}
                                 </span>
                               </div>
                             )}
-                            {guest.check_out_at && guest.status === "done" && (
+                            {guest.check_out_at && (
                               <div className="flex items-center gap-1 mt-1">
                                 <Clock size={12} />
                                 <span className="text-xs">
-                                  Check out: {formatTimeOnly(guest.check_out_at)}
-                                </span>
-                              </div>
-                            )}
-                            {guest.check_in_at && guest.status === "done" && (
-                              <div className="flex items-center gap-1">
-                                <Clock size={12} />
-                                <span className="text-xs">
-                                  Check in: {formatTimeOnly(guest.check_in_at)}
+                                  OUT: {formatTimeOnly(guest.check_out_at)}
                                 </span>
                               </div>
                             )}
@@ -591,7 +630,7 @@ export default function PpidHistoryPage() {
                             <div className="flex items-center gap-1">
                               <Clock size={12} />
                               <span className="text-xs">
-                                Check in: {formatTimeOnly(guest.check_in_at)}
+                                IN: {formatTimeOnly(guest.check_in_at)}
                               </span>
                             </div>
                           )

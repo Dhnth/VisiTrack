@@ -19,6 +19,7 @@ import {
   Shield,
   FileSpreadsheet,
   LogOut,
+  ChevronDown,
 } from "lucide-react";
 import Image from "next/image";
 const colors = {
@@ -688,19 +689,74 @@ export default function PengaturanPage() {
         <label className="block text-sm font-medium text-gray-800 mb-2">
           Waktu Otomatis Checkout
         </label>
-        <div className="relative">
-          <Clock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
-          <input
-            type="time"
-            value={checkoutSettings.auto_checkout_time || ""}
-            onChange={(e) =>
-              setCheckoutSettings({
-                ...checkoutSettings,
-                auto_checkout_time: e.target.value,
-              })
-            }
-            className="w-full pl-9 pr-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#407BA7] border border-gray-200"
-          />
+        <div className="flex items-center gap-4 max-w-[300px]">
+          {/* Jam Column */}
+          <div className="flex-1 space-y-1.5">
+            <span className="text-[10px] font-bold text-[#407BA7] uppercase tracking-wider ml-1">
+              Jam
+            </span>
+            <div className="relative group">
+              <Clock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 group-focus-within:text-[#407BA7] transition-colors z-10" />
+              <select
+                value={(checkoutSettings.auto_checkout_time || "17:00").split(":")[0]}
+                onChange={(e) => {
+                  const parts = (checkoutSettings.auto_checkout_time || "17:00").split(":");
+                  const newTime = `${e.target.value}:${parts[1] || "00"}`;
+                  setCheckoutSettings({
+                    ...checkoutSettings,
+                    auto_checkout_time: newTime,
+                  });
+                }}
+                className="w-full pl-9 pr-8 py-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#407BA7]/30 border border-gray-200 appearance-none bg-white cursor-pointer font-medium text-gray-700 hover:border-[#407BA7]/50 transition-all shadow-sm"
+              >
+                {Array.from({ length: 24 }).map((_, i) => {
+                  const val = i.toString().padStart(2, "0");
+                  return (
+                    <option key={val} value={val}>
+                      {val}
+                    </option>
+                  );
+                })}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 pointer-events-none transition-transform group-hover:translate-y-[-40%]" />
+            </div>
+          </div>
+
+          {/* Separator */}
+          <div className="pt-6 font-bold text-[#407BA7] text-xl animate-pulse">
+            :
+          </div>
+
+          {/* Menit Column */}
+          <div className="flex-1 space-y-1.5">
+            <span className="text-[10px] font-bold text-[#407BA7] uppercase tracking-wider ml-1">
+              Menit
+            </span>
+            <div className="relative group">
+              <select
+                value={(checkoutSettings.auto_checkout_time || "17:00").split(":")[1]?.slice(0, 2) || "00"}
+                onChange={(e) => {
+                  const parts = (checkoutSettings.auto_checkout_time || "17:00").split(":");
+                  const newTime = `${parts[0] || "17"}:${e.target.value}`;
+                  setCheckoutSettings({
+                    ...checkoutSettings,
+                    auto_checkout_time: newTime,
+                  });
+                }}
+                className="w-full px-4 pr-8 py-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#407BA7]/30 border border-gray-200 appearance-none bg-white cursor-pointer font-medium text-gray-700 hover:border-[#407BA7]/50 transition-all shadow-sm"
+              >
+                {Array.from({ length: 60 }).map((_, i) => {
+                  const val = i.toString().padStart(2, "0");
+                  return (
+                    <option key={val} value={val}>
+                      {val}
+                    </option>
+                  );
+                })}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 pointer-events-none transition-transform group-hover:translate-y-[-40%]" />
+            </div>
+          </div>
         </div>
         <p className="text-xs text-gray-400 mt-2">
           Kunjungan akan otomatis checkout pada jam ini setiap hari
