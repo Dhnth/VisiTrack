@@ -1,160 +1,169 @@
-# VisiTrack - Sistem Manajemen Buku Tamu Digital
+# <p align="center">VisiTrack - Modern Digital Guest Book System</p>
 
-VisiTrack adalah sebuah aplikasi *multi-tenant* berbasis web untuk manajemen buku tamu digital. Sistem ini dirancang untuk mempermudah instansi dalam mendata, memvalidasi, dan mengelola kunjungan tamu secara modern dan real-time. Aplikasi ini mendukung berbagai peran pengguna, pelacakan dengan QR code, pengambilan foto bukti, dan pelaporan yang komprehensif.
+<p align="center">
+  <img src="./visitrack_banner.png" alt="VisiTrack Banner" width="100%">
+</p>
 
-## 🚀 Fitur Utama
+<p align="center">
+  <a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js" alt="Next.js"></a>
+  <a href="https://reactjs.org/"><img src="https://img.shields.io/badge/React-19-blue?style=for-the-badge&logo=react" alt="React"></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5-blue?style=for-the-badge&logo=typescript" alt="TypeScript"></a>
+  <a href="https://tailwindcss.com/"><img src="https://img.shields.io/badge/Tailwind_CSS-4-38B2AC?style=for-the-badge&logo=tailwind-css" alt="Tailwind CSS"></a>
+  <a href="https://www.mysql.com/"><img src="https://img.shields.io/badge/MySQL-8-4479A1?style=for-the-badge&logo=mysql" alt="MySQL"></a>
+</p>
 
-- **Multi-Tenant Architecture**: Mendukung banyak instansi dengan URL khusus (`/[slug]`).
-- **Sistem Role-Based Access Control (RBAC)**: Tersedia role Superadmin, Admin, PPID, Petugas, dan Guest.
-- **Check-In/Check-Out Otomatis & Manual**: Tamu dapat mengisi formulir mandiri atau dibantu oleh petugas.
-- **QR Code & Foto Validasi**: Memanfaatkan QR Code untuk pencatatan instan serta dukungan unggah/ambil foto untuk tamu.
-- **Notifikasi Real-Time**: Terintegrasi dengan Pusher untuk update status kunjungan secara *real-time*.
-- **Ekspor & Impor Data**: Manajemen data yang mudah dengan dukungan format Excel (.xlsx).
-- **Dashboard & Statistik**: Laporan komprehensif melalui grafik interaktif (Recharts).
+---
 
-## 🛠️ Teknologi yang Digunakan
+## 🌟 Overview
 
-- **Framework**: [Next.js](https://nextjs.org/) (App Router)
-- **Bahasa**: TypeScript
-- **Styling**: Tailwind CSS & [shadcn/ui](https://ui.shadcn.com/)
-- **Autentikasi**: NextAuth.js
-- **Database**: MySQL (diakses menggunakan `mysql2`)
-- **Real-Time Engine**: Pusher
-- **Icons & Animasi**: Lucide React, Framer Motion, React Icons
+**VisiTrack** is a sophisticated, multi-tenant digital guest book system designed for modern institutions. It streamlines visitor management through automated check-ins, QR code verification, and real-time monitoring. Built with a focus on security, scalability, and ease of use, VisiTrack empowers organizations to manage their visitor logs with professional precision.
 
-## 📂 Struktur Folder Proyek
+> "Scan, validate, and track all in one place. Everything you need to manage visitors smartly and securely."
 
-Di bawah ini adalah struktur folder lengkap dari aplikasi VisiTrack:
+---
+
+## ✨ Key Features
+
+### 🏢 Multi-Tenant Architecture
+Support multiple institutions under a single deployment. Each organization gets its own unique URL slug (e.g., `visitrack.com/my-org`), custom branding, and isolated data.
+
+### 🔐 Robust RBAC (Role-Based Access Control)
+Five distinct roles ensure secure and efficient operations:
+*   **Superadmin**: Central management of all instances and system backups.
+*   **Admin**: Institutional managers who configure settings, employees, and staff.
+*   **PPID**: Information officers focused on reporting and data reconciliation.
+*   **Petugas (Officer)**: Front-line staff for visitor validation and QR scanning.
+*   **Guest**: External visitors with a seamless, mobile-friendly check-in flow.
+
+### 📱 Smart Visitor Flow
+*   **QR Code Integration**: Instant check-in via dynamic or static QR codes.
+*   **Photo Validation**: Mandatory selfie capture for enhanced security.
+*   **Real-Time Dashboard**: Live updates on visitor status using Pusher.
+*   **Automated Notifications**: Stay informed about new registrations and approvals.
+
+### 📊 Insights & Reporting
+*   **Interactive Analytics**: Visualize visit trends with Recharts.
+*   **Data Portability**: Export comprehensive reports to Excel (.xlsx).
+*   **Activity Logs**: Full audit trail of system changes and user actions.
+
+---
+
+## 🛠️ Technology Stack
+
+| Layer | Technologies |
+| :--- | :--- |
+| **Frontend** | Next.js (App Router), React 19, Tailwind CSS 4, Framer Motion, Radix UI, Shadcn/UI |
+| **Backend** | Next.js API Routes, NextAuth.js (v5 Beta), Pusher (Real-time), Nodemailer (SMTP) |
+| **Database** | MySQL (via `mysql2`), Local File Storage (for photos) |
+| **Utilities** | Lucide React, ExcelJS, Node-cron (Backups), QRCode |
+
+---
+
+## 🏗️ Architecture & Flow
+
+VisiTrack utilizes a dynamic routing system to handle multi-tenancy.
+
+```mermaid
+graph TD
+    A[Visitor] -->|Scan QR| B(Guest Form)
+    B -->|Submit Data + Photo| C{Validation}
+    C -->|Petugas| D[Approved/Active]
+    C -->|Petugas| E[Rejected]
+    D -->|Visit Ends| F[Check-Out]
+    
+    subgraph Multi-Tenant Routing
+    G[/[slug]/admin]
+    H[/[slug]/petugas]
+    I[/[slug]/ppid]
+    end
+    
+    subgraph Central Management
+    J[/superadmin]
+    end
+```
+
+---
+
+## 📂 Project Structure
 
 ```text
 visitrack-next/
- ├── app/                         # Direktori utama Next.js (App Router)
- │   ├── api/                     # Endpoint API backend
- │   │   ├── activity-logs/       # API untuk log aktivitas sistem
- │   │   ├── admin/               # API khusus manajemen level Admin
- │   │   ├── auth/                # API autentikasi (NextAuth, reset password)
- │   │   ├── check-instance-status/ # API pengecekan status instansi
- │   │   ├── guest/               # API untuk public/tamu (submit form, foto)
- │   │   ├── instance-id/         # API resolver untuk multi-tenancy
- │   │   ├── petugas/             # API khusus untuk petugas (check-in, validasi)
- │   │   ├── ppid/                # API rekapitulasi PPID
- │   │   ├── superadmin/          # API khusus superadmin (kelola instansi, backup)
- │   │   └── test/                # Endpoint testing
- │   ├── expired/                 # Halaman penanganan link/token expired
- │   ├── forbidden/               # Halaman error 403 (Akses Ditolak)
- │   ├── forgot-password/         # Halaman lupa password
- │   ├── reset-password/          # Halaman reset password
- │   ├── signin/                  # Halaman login utama
- │   ├── [slug]/                  # DYNAMIC ROUTING MULTI-TENANT (Per Instansi)
- │   │   ├── admin/               # Dashboard dan manajemen admin instansi
- │   │   ├── guest-form/          # Formulir tamu mengisi kunjungan
- │   │   ├── guest-status/        # Lacak status tamu (pending/approved/done)
- │   │   ├── guest-success/       # Layar sukses pasca pengisian
- │   │   ├── petugas/             # Antarmuka operasional petugas di lapangan
- │   │   └── ppid/                # Antarmuka untuk PPID instansi
- │   ├── superadmin/              # Halaman manajemen sentral Superadmin
- │   ├── suspended/               # Halaman notifikasi instansi di-suspend
- │   ├── globals.css              # File CSS global & Tailwind setup
- │   ├── layout.tsx               # Root layout Next.js
- │   ├── not-found.tsx            # Halaman error 404 global
- │   └── page.tsx                 # Landing page utama
- ├── backups/                     # Penyimpanan file sistem backup database
- ├── components/                  # Komponen UI React yang dapat digunakan ulang (Reusable)
- │   ├── ui/                      # Base component dari shadcn/ui (Button, Card, Table, dll)
- │   ├── superadmin/              # Komponen terpisah khusus superadmin
- │   ├── FAQSection.tsx           # Komponen layout FAQ
- │   ├── Footer.tsx               # Komponen Footer global
- │   ├── Navbar.tsx               # Komponen navigasi
- │   └── SolutionsSection.tsx     # Komponen fitur/solusi
- ├── hooks/                       # Custom React Hooks
- │   └── use-mobile.ts            # Hook deteksi ukuran layar mobile
- ├── lib/                         # Konfigurasi, utilitas, dan layanan pendukung
- │   ├── activity-log.ts          # Fungsi pencatat aktivitas ke database
- │   ├── auth.ts                  # Konfigurasi dan opsi NextAuth
- │   ├── db.ts                    # Konfigurasi koneksi MySQL
- │   ├── email.ts                 # Utilitas pengiriman email (Nodemailer)
- │   ├── encryption.ts            # Utilitas kriptografi token
- │   ├── pusher/                  # Setup server & client untuk Pusher (Real-Time)
- │   └── utils.ts                 # Helper format class CSS Tailwind (clsx & twMerge)
- ├── public/                      # Aset statis & Media
- │   ├── images/                  # Ikon, ilustrasi, background
- │   ├── uploads/                 # Tempat penyimpanan foto tamu dan logo instansi (Local)
- │   └── favicon.ico              # Ikon website
- ├── types/                       # Deklarasi tipe data TypeScript (Interfaces & Types)
- │   ├── index.ts                 # Type global
- │   └── next-auth.d.ts           # Override tipe dari NextAuth
- ├── middleware.ts                # Middleware untuk router protection & redirect instansi
- ├── next.config.ts               # Konfigurasi environment Next.js
- ├── package.json                 # Daftar dependensi NPM & script proyek
- ├── postcss.config.mjs           # Konfigurasi CSS PostCSS
- ├── tailwind.config.ts           # Konfigurasi desain Tailwind
- └── tsconfig.json                # Aturan dan konfigurasi TypeScript
+ ├── app/                 # Next.js App Router (Multi-tenant routes)
+ ├── components/          # Reusable UI Components (Shadcn + Custom)
+ ├── hooks/               # Custom React Hooks
+ ├── lib/                 # Core Utilities (DB, Auth, Pusher, Mail)
+ ├── public/              # Static Assets & Local Uploads
+ ├── types/               # TypeScript Type Definitions
+ ├── backups/             # Database SQL Backups
+ └── middleware.ts        # RBAC & Tenant Protection Logic
 ```
 
-## 🧑‍💻 Peran Pengguna (Roles)
+---
 
-1. **Superadmin**: Berwenang penuh mengatur *instances* (instansi-instansi pengguna sistem), melihat logs, serta melakukan manajemen dan pencadangan (backup) database pusat.
-2. **Admin**: Pengelola utama di suatu instansi (berada dalam URL `/[slug]/admin`). Dapat mengelola data petugas, PPID, pegawai, serta mengatur pengaturan logo dan informasi instansi.
-3. **PPID**: Pengawas dan pemegang data informasi yang berwenang untuk mencetak, mengekspor laporan, serta merekap semua riwayat kunjungan.
-4. **Petugas**: Pengguna di lini depan (resepsionis/satpam) yang memverifikasi, melakukan scan QR Code tamu, mengubah status pengunjung (check-in/check-out), atau menambahkan data tamu secara manual.
-5. **Guest (Tamu)**: Pengguna eksternal yang mengunjungi *form link* instansi terkait untuk mengisi tujuan, data diri, serta mengunggah/mengambil foto untuk bukti sebelum dapat disetujui untuk berkunjung.
+## 🚀 Getting Started
 
-## ⚙️ Persyaratan Sistem & Instalasi
+### Prerequisites
+*   Node.js v18+
+*   MySQL Server 8.0+
+*   Pusher Account (for real-time features)
 
-Untuk menjalankan *repository* ini secara lokal, pastikan Anda telah memiliki:
+### Installation
 
-- Node.js (Minimal v18.x)
-- MySQL Server
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/your-username/visitrack-next.git
+    cd visitrack-next
+    ```
 
-### 1. Kloning Repository
+2.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
 
-```bash
-git clone <url-repository>
-cd visitrack-next
-```
+3.  **Environment Setup:**
+    Create a `.env` file in the root directory:
+    ```env
+    # Database
+    DB_HOST="localhost"
+    DB_USER="root"
+    DB_PASSWORD="your_password"
+    DB_NAME="visitrack_next"
 
-### 2. Instalasi Dependensi
+    # NextAuth
+    NEXTAUTH_SECRET="your_secret_key"
+    NEXTAUTH_URL="http://localhost:3000"
 
-```bash
-npm install
-# atau
-yarn install
-# atau
-pnpm install
-```
+    # Pusher
+    NEXT_PUBLIC_PUSHER_APP_KEY="your_key"
+    PUSHER_APP_ID="your_id"
+    PUSHER_SECRET="your_secret"
+    NEXT_PUBLIC_PUSHER_CLUSTER="your_cluster"
 
-### 3. Konfigurasi Lingkungan (.env)
+    # SMTP (Optional for password recovery)
+    SMTP_HOST="smtp.gmail.com"
+    SMTP_PORT="587"
+    SMTP_USER="your_email"
+    SMTP_PASS="your_app_password"
+    ```
 
-Buat file `.env` di root folder dan konfigurasikan *environment variables* berikut sesuai dengan sistem Anda:
+4.  **Database Initialization:**
+    Import the latest SQL schema from `backups/db_backup_xxxx.sql` into your MySQL database.
 
-```env
-# Database
-DB_HOST="localhost"
-DB_USER="root"
-DB_PASSWORD=""
-DB_NAME="visitrack_db"
+5.  **Run the development server:**
+    ```bash
+    npm run dev
+    ```
 
-# NextAuth
-NEXTAUTH_SECRET="secret-random-string-anda"
-NEXTAUTH_URL="http://localhost:3000"
+---
 
-# Pusher
-NEXT_PUBLIC_PUSHER_APP_KEY="pusher-key-anda"
-PUSHER_APP_ID="pusher-id-anda"
-PUSHER_SECRET="pusher-secret-anda"
-NEXT_PUBLIC_PUSHER_CLUSTER="ap1"
+## 🔒 Security & Performance
+*   **CSRF Protection**: Handled by NextAuth.js.
+*   **Data Isolation**: Strict tenant filtering in all database queries.
+*   **Edge Middleware**: Fast role-based redirects and authentication checks.
+*   **Optimized Assets**: Next/Image for efficient media loading.
 
-# Email SMTP (Untuk Lupa Password)
-SMTP_HOST="smtp.gmail.com"
-SMTP_PORT="587"
-SMTP_USER="email@anda.com"
-SMTP_PASS="password-app-anda"
-```
+---
 
-### 4. Menjalankan Mode Pengembangan (Development)
-
-```bash
-npm run dev
-```
-
-Aplikasi sekarang dapat diakses melalui `http://localhost:3000`.
+<p align="center">
+  Built with ❤️ by <b>Dhanis Fathan Gunawan</b>
+</p>

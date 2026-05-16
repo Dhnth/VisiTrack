@@ -1,0 +1,22 @@
+NASKAH PRESENTASI VISITRACK
+==========================
+
+(Bisa Anda sesuaikan gayanya dengan karakter bicara Anda)
+
+1. PEMBUKAAN & PERKENALAN
+"Assalamualaikum Warahmatullahi Wabarakatuh, selamat siang Bapak/Ibu manajemen yang saya hormati. Terima kasih atas kesempatan yang diberikan kepada saya hari ini. Nama saya [Nama Anda], dan hari ini saya ingin mempresentasikan hasil pengembangan project saya yang berjudul VisiTrack. VisiTrack adalah sebuah Sistem Manajemen Buku Tamu Digital Modern yang dirancang khusus untuk membawa proses administrasi kunjungan di sekolah kita ke level yang lebih profesional, aman, dan terorganisir."
+
+2. MASALAH (TRANSISI DARI MANUAL)
+"Selama ini, kita masih menggunakan buku tamu konvensional berbasis kertas. Namun, seiring dengan tuntutan digitalisasi, sistem manual ini mulai menunjukkan keterbatasan. Seringkali kita menemukan tulisan tamu yang sulit dibaca, data yang tercecer, hingga sulitnya tim administrasi saat harus membuat rekapitulasi bulanan secara manual. Selain itu, dari sisi keamanan, buku tamu manual tidak memiliki bukti identitas yang kuat. Inilah alasan utama mengapa transisi ke sistem digital VisiTrack menjadi sangat krusial bagi instansi kita."
+
+3. SOLUSI & KEUNGGULAN UTAMA
+"VisiTrack hadir sebagai solusi all-in-one. Dengan sistem ini, tamu tidak perlu lagi mengantre untuk menulis di buku besar; mereka cukup melakukan scan QR Code, mengisi data diri, dan mengambil foto selfie sebagai validasi kehadiran di lokasi. Bagi manajemen, keunggulan utamanya adalah transparansi. Bapak dan Ibu bisa memantau dashboard secara real-time untuk melihat siapa saja tamu yang sedang aktif di lingkungan sekolah saat ini. Selain itu, semua data tersimpan secara terpusat dan dapat diekspor ke format Excel hanya dengan satu klik."
+
+4. PERENCANAAN PENGEMBANGAN & KONTROL (TEKNIS)
+"Dalam proses pengembangannya, saya menggunakan teknologi Next.js dan MySQL yang merupakan standar industri saat ini untuk menjamin kecepatan dan skalabilitas sistem. Saya juga menerapkan sistem kontrol yang ketat melalui Role-Based Access Control. Artinya, setiap pengguna memiliki batasan akses yang jelas; petugas keamanan hanya bisa memvalidasi tamu, sedangkan manajemen memiliki hak akses ke laporan dan statistik. Hal ini memastikan bahwa data sensitif sekolah tetap terlindungi dan hanya bisa diakses oleh pihak yang berwenang."
+
+5. PROSEDUR UJICOBA (TESTING)
+"Untuk memastikan keandalan sistem ini, saya telah melakukan serangkaian ujicoba sesuai prosedur pengembangan perangkat lunak. Saya menguji setiap alur, mulai dari pendaftaran tamu, pengiriman data secara real-time ke dashboard petugas, hingga proses check-out otomatis. Hasil testing menunjukkan bahwa sistem mampu menangani input data dengan akurat, mencegah duplikasi, dan memberikan notifikasi instan kepada petugas saat ada tamu baru yang mendaftar. Hal ini membuktikan bahwa VisiTrack sudah siap digunakan dalam operasional sehari-hari."
+
+6. VISI MASA DEPAN & PENUTUP
+"Ke depannya, VisiTrack masih bisa dikembangkan lebih jauh, misalnya dengan integrasi notifikasi otomatis ke WhatsApp guru atau staf yang akan dikunjungi. Sebagai penutup, saya percaya bahwa implementasi VisiTrack akan menjadi langkah besar bagi sekolah kita dalam menunjukkan profesionalisme di mata tamu kedinasan maupun masyarakat luas. Demikian presentasi dari saya, mohon maaf jika ada kekurangan. Terima kasih atas perhatiannya, Wassalamualaikum Warahmatullahi Wabarakatuh."
