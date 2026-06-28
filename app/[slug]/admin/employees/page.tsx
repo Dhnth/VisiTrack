@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Filter, Plus, Edit, Trash2, Download, Upload,
-  RefreshCw, X, AlertCircle, ChevronLeft, ChevronRight,
-  CheckSquare, Square, FileSpreadsheet, FileText, CheckCircle
+  RefreshCw, X, AlertCircle, CheckSquare, Square, 
+  FileSpreadsheet, FileText, CheckCircle, Loader2
 } from 'lucide-react';
 
 interface Employee {
@@ -19,26 +19,16 @@ interface Employee {
   created_at: string;
 }
 
-interface Pagination {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
-
 export default function EmployeesPage() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const params = useParams();
   const _slug = params.slug as string;
 
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [pagination, setPagination] = useState<Pagination>({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 0,
-  });
-  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -64,18 +54,75 @@ export default function EmployeesPage() {
   const [showExportSuccess, setShowExportSuccess] = useState(false);
   const [showImportSuccess, setShowImportSuccess] = useState(false);
   const [importResult, setImportResult] = useState<{ success: number; fail: number } | null>(null);
+  const [showAlert, setShowAlert] = useState<{ type: 'success' | 'error' | 'warning' | 'info'; message: string } | null>(null);
+  const [showBulkActionConfirm, setShowBulkActionConfirm] = useState<{
+    action: 'activate' | 'deactivate' | 'delete';
+    count: number;
+  } | null>(null);
 
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const lastElementRef = useRef<HTMLTableRowElement | null>(null);
 
-  // Live search with debounce + reset page
+  // FETCH DATA with infinite scroll
+  const fetchEmployees = useCallback(async (resetData: boolean = false) => {
+    // Prevent multiple simultaneous requests
+    if (loading) return;
+    if (!resetData && !hasMore) return;
+
+    setLoading(true);
+    
+    const currentPage = resetData ? 1 : page;
+    const urlParams = new URLSearchParams();
+    urlParams.append('page', currentPage.toString());
+    urlParams.append('limit', '10');
+    if (search) urlParams.append('search', search);
+    if (statusFilter !== 'all') urlParams.append('status', statusFilter);
+
+    try {
+      const res = await fetch(`/api/admin/employees?${urlParams.toString()}`);
+      const data = await res.json();
+      
+      if (data.success) {
+        if (resetData) {
+          setEmployees(data.employees);
+          setPage(2);
+        } else {
+          setEmployees(prev => [...prev, ...data.employees]);
+          setPage(prev => prev + 1);
+        }
+        setHasMore(data.pagination.page < data.pagination.totalPages);
+      }
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+    } finally {
+      setLoading(false);
+      if (resetData) {
+        setInitialLoading(false);
+      }
+    }
+  }, [page, search, statusFilter, hasMore, loading]);
+
+  // Initial load
+  useEffect(() => {
+    fetchEmployees(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Handle search with debounce
   useEffect(() => {
     if (debounceTimeout.current) {
       clearTimeout(debounceTimeout.current);
     }
 
     debounceTimeout.current = setTimeout(() => {
-      setPagination(prev => ({ ...prev, page: 1 }));
       setSearch(searchInput);
+      setPage(1);
+      setHasMore(true);
+      setEmployees([]);
+      setInitialLoading(true);
+      // Fetch with reset
+      fetchEmployees(true);
     }, 500);
 
     return () => {
@@ -85,43 +132,53 @@ export default function EmployeesPage() {
     };
   }, [searchInput]);
 
-  // FETCH DATA - langsung di dalam useEffect
+  // Handle status filter change
   useEffect(() => {
-    const fetchEmployees = async () => {
-      setLoading(true);
-      const urlParams = new URLSearchParams();
-      urlParams.append('page', pagination.page.toString());
-      urlParams.append('limit', '10');
-      if (search) urlParams.append('search', search);
-      if (statusFilter !== 'all') urlParams.append('status', statusFilter);
+    if (statusFilter !== 'all') {
+      setPage(1);
+      setHasMore(true);
+      setEmployees([]);
+      setInitialLoading(true);
+      fetchEmployees(true);
+    }
+  }, [statusFilter]);
 
-      const res = await fetch(`/api/admin/employees?${urlParams.toString()}`);
-      const data = await res.json();
-      if (data.success) {
-        setEmployees(data.employees);
-        setPagination(prev => ({ ...prev, ...data.pagination }));
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
+
+    observerRef.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore && !loading && !initialLoading && employees.length > 0) {
+        fetchEmployees(false);
       }
-      setLoading(false);
+    }, { threshold: 0.1 });
+
+    if (lastElementRef.current) {
+      observerRef.current.observe(lastElementRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
     };
-    fetchEmployees();
-  }, [pagination.page, search, statusFilter]);
+  }, [employees, hasMore, loading, initialLoading, fetchEmployees]);
 
   const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setStatusFilter(e.target.value);
-    setPagination(prev => ({ ...prev, page: 1 }));
   };
 
   const clearFilters = () => {
     setSearchInput('');
     setSearch('');
     setStatusFilter('all');
-    setPagination(prev => ({ ...prev, page: 1 }));
-  };
-
-  const goToPage = (page: number) => {
-    if (page >= 1 && page <= pagination.totalPages) {
-      setPagination(prev => ({ ...prev, page }));
-    }
+    setPage(1);
+    setHasMore(true);
+    setEmployees([]);
+    setInitialLoading(true);
+    fetchEmployees(true);
   };
 
   const toggleSelectAll = () => {
@@ -142,23 +199,55 @@ export default function EmployeesPage() {
 
   const handleBulkAction = async (action: 'activate' | 'deactivate' | 'delete') => {
     if (selectedIds.length === 0) {
-      alert('Pilih karyawan terlebih dahulu');
+      setShowAlert({
+        type: 'warning',
+        message: 'Pilih karyawan terlebih dahulu'
+      });
       return;
     }
 
-    if (action === 'delete' && !confirm(`Hapus ${selectedIds.length} karyawan?`)) return;
+    if (action === 'delete') {
+      setShowBulkActionConfirm({ action, count: selectedIds.length });
+      return;
+    }
 
-    const res = await fetch('/api/admin/employees', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, ids: selectedIds }),
-    });
-    const data = await res.json();
-    if (data.success) {
-      setSelectedIds([]);
-      window.location.reload();
-    } else {
-      alert(data.error);
+    await executeBulkAction(action);
+  };
+
+  const executeBulkAction = async (action: 'activate' | 'deactivate' | 'delete') => {
+    setShowBulkActionConfirm(null);
+    
+    try {
+      const res = await fetch('/api/admin/employees', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ids: selectedIds }),
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        setSelectedIds([]);
+        setShowAlert({
+          type: 'success',
+          message: `Berhasil ${action === 'activate' ? 'mengaktifkan' : action === 'deactivate' ? 'menonaktifkan' : 'menghapus'} ${selectedIds.length} karyawan`
+        });
+        // Refresh data
+        setPage(1);
+        setHasMore(true);
+        setEmployees([]);
+        setInitialLoading(true);
+        fetchEmployees(true);
+      } else {
+        setShowAlert({
+          type: 'error',
+          message: data.error || 'Gagal melakukan aksi'
+        });
+      }
+    } catch (error) {
+      setShowAlert({
+        type: 'error',
+        message: 'Terjadi kesalahan pada server'
+      });
     }
   };
 
@@ -198,34 +287,68 @@ export default function EmployeesPage() {
       ? formData
       : { ...formData, id: selectedEmployee?.id };
 
-    const res = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
 
-    if (data.success) {
-      setFormSuccess(data.message);
-      setTimeout(() => {
-        setShowModal(false);
-        window.location.reload();
-      }, 1500);
-    } else {
-      setFormError(data.error);
+      if (data.success) {
+        setFormSuccess(data.message);
+        setShowAlert({
+          type: 'success',
+          message: data.message
+        });
+        setTimeout(() => {
+          setShowModal(false);
+          // Refresh data
+          setPage(1);
+          setHasMore(true);
+          setEmployees([]);
+          setInitialLoading(true);
+          fetchEmployees(true);
+        }, 1500);
+      } else {
+        setFormError(data.error || 'Terjadi kesalahan');
+      }
+    } catch (error) {
+      setFormError('Terjadi kesalahan pada server');
     }
     setActionLoading(false);
   };
 
   const handleDelete = async (employee: Employee) => {
-    const res = await fetch(`/api/admin/employees?id=${employee.id}`, { method: 'DELETE' });
-    const data = await res.json();
-    if (data.success) {
-      window.location.reload();
-    } else {
-      alert(data.error);
-    }
     setShowDeleteConfirm(null);
+    
+    try {
+      const res = await fetch(`/api/admin/employees?id=${employee.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      
+      if (data.success) {
+        setShowAlert({
+          type: 'success',
+          message: `Berhasil menghapus karyawan "${employee.name}"`
+        });
+        // Refresh data
+        setPage(1);
+        setHasMore(true);
+        setEmployees([]);
+        setInitialLoading(true);
+        fetchEmployees(true);
+      } else {
+        setShowAlert({
+          type: 'error',
+          message: data.error || 'Gagal menghapus karyawan'
+        });
+      }
+    } catch (error) {
+      setShowAlert({
+        type: 'error',
+        message: 'Terjadi kesalahan pada server'
+      });
+    }
   };
 
   const handleExport = async () => {
@@ -240,7 +363,10 @@ export default function EmployeesPage() {
 
   const handleImport = async () => {
     if (!importFile) {
-      alert('Pilih file Excel terlebih dahulu');
+      setShowAlert({
+        type: 'warning',
+        message: 'Pilih file Excel terlebih dahulu'
+      });
       return;
     }
 
@@ -248,27 +374,49 @@ export default function EmployeesPage() {
     const formData = new FormData();
     formData.append('file', importFile);
 
-    const res = await fetch('/api/admin/employees/import', {
-      method: 'POST',
-      body: formData,
-    });
-    const data = await res.json();
-    if (data.success) {
-      setImportResult({ success: data.successCount || 0, fail: data.errorCount || 0 });
-      setShowImportSuccess(true);
-      setTimeout(() => {
-        setShowImportSuccess(false);
-        setShowImportModal(false);
-        setImportFile(null);
-        window.location.reload();
-      }, 3000);
-    } else {
-      alert(data.error);
+    try {
+      const res = await fetch('/api/admin/employees/import', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        setImportResult({ success: data.successCount || 0, fail: data.errorCount || 0 });
+        setShowImportSuccess(true);
+        setShowAlert({
+          type: 'success',
+          message: `Import berhasil! ${data.successCount || 0} data ditambahkan${data.errorCount > 0 ? `, ${data.errorCount} gagal` : ''}.`
+        });
+        setTimeout(() => {
+          setShowImportSuccess(false);
+          setShowImportModal(false);
+          setImportFile(null);
+          // Refresh data
+          setPage(1);
+          setHasMore(true);
+          setEmployees([]);
+          setInitialLoading(true);
+          fetchEmployees(true);
+        }, 3000);
+      } else {
+        setShowAlert({
+          type: 'error',
+          message: data.error || 'Gagal import data'
+        });
+        setImportLoading(false);
+      }
+    } catch (error) {
+      setShowAlert({
+        type: 'error',
+        message: 'Terjadi kesalahan pada server'
+      });
+      setImportLoading(false);
     }
-    setImportLoading(false);
   };
 
-  if (loading) {
+  // Show loading only on initial load
+  if (initialLoading) {
     return (
       <div className="flex justify-center items-center h-96">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#407BA7]"></div>
@@ -278,7 +426,7 @@ export default function EmployeesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header - same as before */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Data Karyawan</h1>
@@ -311,31 +459,26 @@ export default function EmployeesPage() {
         </div>
       </div>
 
-      {/* Success Toasts */}
+      {/* Alert Component */}
       <AnimatePresence>
-        {showExportSuccess && (
+        {showAlert && (
           <motion.div
-            initial={{ opacity: 0, y: -50 }}
+            initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -50 }}
-            className="fixed top-20 right-4 z-50 bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2"
+            exit={{ opacity: 0, y: -20 }}
+            className={`p-4 rounded-lg border ${
+              showAlert.type === 'success' ? 'bg-green-50 border-green-200 text-green-700' :
+              showAlert.type === 'error' ? 'bg-red-50 border-red-200 text-red-700' :
+              showAlert.type === 'warning' ? 'bg-yellow-50 border-yellow-200 text-yellow-700' :
+              'bg-blue-50 border-blue-200 text-blue-700'
+            }`}
           >
-            <CheckCircle size={18} />
-            <span>Export Excel berhasil! File sedang didownload.</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showImportSuccess && importResult && (
-          <motion.div
-            initial={{ opacity: 0, y: -50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -50 }}
-            className="fixed top-20 right-4 z-50 bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2"
-          >
-            <CheckCircle size={18} />
-            <span>Import berhasil! {importResult.success} data ditambahkan{importResult.fail > 0 ? `, ${importResult.fail} gagal` : ''}.</span>
+            <div className="flex items-center justify-between">
+              <span>{showAlert.message}</span>
+              <button onClick={() => setShowAlert(null)} className="p-1 hover:opacity-70">
+                <X size={16} />
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -361,7 +504,13 @@ export default function EmployeesPage() {
           {statusFilter !== 'all' && <span className="w-2 h-2 bg-[#407BA7] rounded-full" />}
         </button>
         <button
-          onClick={() => window.location.reload()}
+          onClick={() => {
+            setPage(1);
+            setHasMore(true);
+            setEmployees([]);
+            setInitialLoading(true);
+            fetchEmployees(true);
+          }}
           className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
         >
           <RefreshCw size={16} />
@@ -458,12 +607,16 @@ export default function EmployeesPage() {
               {employees.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-12 text-center text-gray-400">
-                    Belum ada data karyawan
+                    {search || statusFilter !== 'all' ? 'Tidak ada data yang sesuai dengan filter' : 'Belum ada data karyawan'}
                   </td>
                 </tr>
               ) : (
-                employees.map((employee) => (
-                  <tr key={employee.id} className="hover:bg-gray-50 transition">
+                employees.map((employee, index) => (
+                  <tr 
+                    key={employee.id} 
+                    ref={index === employees.length - 1 ? lastElementRef : null}
+                    className="hover:bg-gray-50 transition"
+                  >
                     <td className="px-4 py-3">
                       <button onClick={() => toggleSelect(employee.id)}>
                         {selectedIds.includes(employee.id) ? (
@@ -510,48 +663,21 @@ export default function EmployeesPage() {
         </div>
       </div>
 
-      {/* Pagination */}
-      {pagination.totalPages > 1 && (
-        <div className="flex justify-center items-center gap-2">
-          <button
-            onClick={() => goToPage(pagination.page - 1)}
-            disabled={pagination.page === 1}
-            className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition disabled:opacity-50"
-          >
-            <ChevronLeft size={16} />
-          </button>
-          <div className="flex gap-1">
-            {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
-              let pageNum;
-              if (pagination.totalPages <= 5) pageNum = i + 1;
-              else if (pagination.page <= 3) pageNum = i + 1;
-              else if (pagination.page >= pagination.totalPages - 2) pageNum = pagination.totalPages - 4 + i;
-              else pageNum = pagination.page - 2 + i;
-              return (
-                <button
-                  key={pageNum}
-                  onClick={() => goToPage(pageNum)}
-                  className={`w-8 h-8 rounded-lg text-sm transition ${
-                    pagination.page === pageNum
-                      ? 'bg-[#407BA7] text-white'
-                      : 'border border-gray-200 hover:bg-gray-50'
-                  }`}
-                >
-                  {pageNum}
-                </button>
-              );
-            })}
-          </div>
-          <button
-            onClick={() => goToPage(pagination.page + 1)}
-            disabled={pagination.page === pagination.totalPages}
-            className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition"
-          >
-            <ChevronRight size={16} />
-          </button>
+      {/* Loading indicator for infinite scroll */}
+      {loading && !initialLoading && (
+        <div className="flex justify-center py-4">
+          <Loader2 className="animate-spin text-[#407BA7]" size={24} />
         </div>
       )}
 
+      {/* No more data indicator */}
+      {!hasMore && employees.length > 0 && (
+        <div className="text-center py-4 text-sm text-gray-400">
+          — Tidak ada data lagi —
+        </div>
+      )}
+
+      {/* Modals - same as before */}
       {/* Modal Add/Edit */}
       <AnimatePresence>
         {showModal && (
@@ -761,6 +887,52 @@ export default function EmployeesPage() {
                 </button>
                 <button onClick={() => handleDelete(showDeleteConfirm)} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
                   Hapus
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Bulk Action Confirm */}
+      <AnimatePresence>
+        {showBulkActionConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            onClick={() => setShowBulkActionConfirm(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 rounded-full bg-red-100">
+                  <AlertCircle size={24} className="text-red-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800">Konfirmasi Hapus Massal</h3>
+              </div>
+              <p className="text-gray-600 mb-6">
+                {`Apakah Anda yakin ingin menghapus ${showBulkActionConfirm.count} karyawan yang dipilih?`}
+                <br />
+                <span className="text-red-500 text-sm">
+                  Tindakan ini tidak dapat dibatalkan!
+                </span>
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button onClick={() => setShowBulkActionConfirm(null)} className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50">
+                  Batal
+                </button>
+                <button 
+                  onClick={() => executeBulkAction('delete')} 
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                >
+                  Hapus Semua
                 </button>
               </div>
             </motion.div>

@@ -51,7 +51,7 @@ function SearchableSelect({
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
-  label: string;
+  label: React.ReactNode;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -151,7 +151,7 @@ function SearchableSelect({
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Cari karyawan..."
-                  className="w-full pl-9 pr-3 py-1.5 text-sm rounded-lg focus:outline-none focus:ring-2"
+                  className="w-full pl-9 pr-3 py-3 text-sm rounded-lg focus:outline-none focus:ring-2"
                   style={{
                     border: `1px solid ${colors.secondary}20`,
                     backgroundColor: colors.white,
@@ -374,7 +374,7 @@ export default function GuestFormPage() {
   };
 
   const startCaptureWithTimer = () => {
-    let countdown = 3;
+    let countdown = 2;
     setTimer(countdown);
     setShowTimerOverlay(true);
     if (timerRef.current) clearInterval(timerRef.current);
@@ -458,12 +458,41 @@ export default function GuestFormPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.purpose) {
-      showToast("error", "Nama tamu dan tujuan kunjungan wajib diisi");
+    
+    if (!formData.name.trim()) {
+      showToast("error", "Nama lengkap wajib diisi");
+      return;
+    }
+    if (formData.name.trim().length < 3) {
+      showToast("error", "Nama lengkap minimal 3 karakter");
+      return;
+    }
+    if (!formData.nik.trim()) {
+      showToast("error", "NIK wajib diisi");
+      return;
+    }
+    if (!/^\d{16}$/.test(formData.nik.trim())) {
+      showToast("error", "NIK harus berupa 16 digit angka");
+      return;
+    }
+    if (formData.institution.trim() && formData.institution.trim().length < 2) {
+      showToast("error", "Nama instansi minimal 2 karakter");
+      return;
+    }
+    if (!formData.purpose.trim()) {
+      showToast("error", "Tujuan kunjungan wajib diisi");
+      return;
+    }
+    if (formData.purpose.trim().length < 5) {
+      showToast("error", "Tujuan kunjungan minimal 5 karakter");
+      return;
+    }
+    if (!formData.employee_id) {
+      showToast("error", "Karyawan tujuan wajib dipilih");
       return;
     }
     if (!photoUrl) {
-      showToast("error", "Foto wajib diambil");
+      showToast("error", "Foto selfie wajib diambil");
       return;
     }
 
@@ -574,7 +603,7 @@ export default function GuestFormPage() {
             initial={{ opacity: 0, y: -50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -50 }}
-            className="fixed top-20 right-4 z-50 px-4 py-3 rounded-xl shadow-lg flex items-center gap-2"
+            className="fixed top-20 right-4 z-50 px-4 py-3 rounded-xl shadow-lg flex items-center gap-2" 
             style={{
               backgroundColor:
                 toastMessage.type === "success"
@@ -925,7 +954,7 @@ export default function GuestFormPage() {
           }}
         />
 
-        <div className="relative z-10 py-8 px-4">
+        <div className="relative z-10 py-8 px-4 mb-40">
           <div className="max-w-2xl mx-auto">
             {/* Header */}
             <div className="text-center mb-8">
@@ -969,7 +998,7 @@ export default function GuestFormPage() {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.3 }}
-              className="rounded-2xl shadow-xl overflow-hidden bg-white/95 backdrop-blur-sm"
+              className="rounded-2xl shadow-xl bg-white/95 backdrop-blur-sm"
               style={{ border: `1px solid ${colors.secondary}20` }}
             >
               <form onSubmit={handleSubmit} className="p-6 space-y-5">
@@ -1061,15 +1090,17 @@ export default function GuestFormPage() {
                       className="block text-sm font-medium mb-1"
                       style={{ color: colors.secondaryDarkest }}
                     >
-                      NIK
+                      NIK <span style={{ color: colors.primaryLight }}>*</span>
                     </label>
                     <input
                       type="text"
                       value={formData.nik}
-                      onChange={(e) =>
-                        setFormData({ ...formData, nik: e.target.value })
-                      }
-                      placeholder="Nomor Induk Kependudukan (opsional)"
+                      onChange={(e) => {
+                        const numericValue = e.target.value.replace(/\D/g, '').slice(0, 16);
+                        setFormData({ ...formData, nik: numericValue });
+                      }}
+                      required
+                      placeholder="Nomor Induk Kependudukan (16 digit angka)"
                       className="w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2"
                       style={{
                         border: `1px solid ${colors.secondary}20`,
@@ -1168,7 +1199,11 @@ export default function GuestFormPage() {
                         setFormData({ ...formData, employee_id: val })
                       }
                       placeholder="Pilih karyawan yang ingin dituju"
-                      label="Karyawan Tujuan"
+                      label={
+                        <>
+                          Karyawan Tujuan <span style={{ color: colors.primaryLight }}>*</span>
+                        </>
+                      }
                     />
                   </div>
                 </div>

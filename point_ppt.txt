@@ -1,0 +1,23 @@
+# Slide 1: Masalah Saat Ini
+- Pencatatan tamu masih manual menggunakan buku tulis.
+- Sangat sulit dan memakan waktu untuk mencari data riwayat kunjungan lama.
+- Rentan pemalsuan identitas karena tidak ada bukti foto wajah tamu.
+- Pembuatan laporan atau rekap jumlah tamu setiap bulan cukup merepotkan.
+
+# Slide 2: Solusinya, VisiTrack
+- VisiTrack adalah Sistem Buku Tamu Digital yang modern.
+- Instansi/kantor Anda akan mendapatkan tautan khusus (contoh: visitrack.com/kantor-anda) yang sepenuhnya terpisah, privat, dan aman.
+- Proses mencatat, memvalidasi, dan merekap data tamu dilakukan sepenuhnya secara digital.
+- Memberikan kesan pertama yang profesional, cepat, dan canggih bagi para tamu yang datang ke kantor Anda.
+
+# Slide 3: Fitur Utama & Pembagian Peran
+- **01. Verifikasi Keamanan Lengkap**: Sistem mewajibkan tamu untuk mengambil foto selfie sebagai bukti kunjungan yang sah.
+- **02. Akses Mudah Tanpa Instalasi**: Tamu tidak perlu menginstal aplikasi apa pun, cukup menggunakan browser di HP mereka.
+- **03. Pemberitahuan Seketika (Real-time)**: Resepsionis langsung mendapatkan notifikasi di layar komputer detik itu juga saat tamu selesai mengisi formulir.
+- **04. Pembagian Peran yang Rapi**: Sistem memisahkan tugas pengelola/admin, bagian pelaporan/analitik, dan petugas resepsionis yang berjaga di depan agar pekerjaan lebih terorganisir.
+
+# Slide 4: Cara Kerja yang Sangat Mudah (Untuk Tamu)
+1. **Scan QR Code**: Tamu tiba di lokasi dan langsung memindai (scan) QR Code di meja resepsionis menggunakan HP.
+2. **Isi Formulir & Selfie**: Tamu mengisi data dasar (nama, asal, tujuan pegawai) dan mengambil foto wajah secara langsung.
+3. **Tunggu Izin**: Formulir yang dikirim akan langsung muncul di layar Resepsionis. Tamu tinggal menunggu petugas mengeklik "Setuju" atau "Tolak".
+4. **Selesai (Check-Out)**: Setelah pertemuan selesai, status kunjungan tamu di sistem akan ditandai selesai.

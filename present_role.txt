@@ -1,0 +1,102 @@
+========================================================================
+             PRESENTASI PERAN & FITUR VISITRACK (UNTUK ORANG AWAM)
+========================================================================
+
+Halo Bapak/Ibu sekalian, pada kesempatan ini kami akan menjelaskan bagaimana
+sistem VisiTrack membagi pekerjaan untuk 3 peran (role) penting di kantor Anda:
+1. ADMIN (Pengelola Pusat Instansi)
+2. PPID (Bagian Laporan & Humas)
+3. PETUGAS (Resepsionis / Satpam Garda Depan)
+
+Pembagian peran ini bertujuan agar kerja lebih teratur, keamanan terjaga, 
+dan pimpinan bisa mendapatkan laporan yang valid secara instan.
+
+Berikut adalah penjelasan fitur yang bisa dilakukan oleh masing-masing peran
+dengan bahasa yang sangat sederhana:
+
+------------------------------------------------------------------------
+1. ROLE: ADMIN (Pengelola Pusat / "Super Manager" Kantor)
+------------------------------------------------------------------------
+Analogi: Admin ini seperti Kepala Tata Usaha atau Manajer Operasional. 
+Dialah yang memegang kunci utama untuk mengatur segala kebutuhan sistem 
+di dalam satu instansi atau sekolah.
+
+Fitur yang bisa dilakukan Admin:
+*   Melihat Dashboard Statistik (Pantau Kantor dalam Sekejap)
+    -> Layar utama yang menampilkan grafik kunjungan. Admin bisa langsung tahu 
+       berapa total tamu bulan ini, berapa yang sedang ada di dalam gedung, 
+       dan grafik hari apa yang paling ramai dikunjungi.
+*   Mengelola Daftar Karyawan/Guru/Staf (Daftar Orang Dalam Kantor)
+    -> Admin bisa memasukkan, mengubah, atau menghapus daftar nama pegawai kantor. 
+       Daftar inilah yang nantinya dipilih oleh tamu saat mendaftar: 
+       "Ingin bertemu dengan siapa?"
+*   Membuat Akun Petugas & PPID (Bagi-Bagi Tugas)
+    -> Admin memiliki wewenang untuk membuatkan akun bagi satpam/resepsionis 
+       (Petugas) dan staf pembuat laporan (PPID). Jika ada petugas yang pindah 
+       tugas, Admin bisa menonaktifkan akunnya agar aman.
+*   Melihat Riwayat Kunjungan Abadi (Buku Tamu Digital)
+    -> Admin bisa melihat semua riwayat tamu dari hari pertama aplikasi digunakan. 
+       Lengkap dengan foto wajah tamu, jam masuk, jam keluar, dan statusnya.
+*   Mengatur Identitas Kantor (Branding Pengaturan)
+    -> Admin bisa mengganti logo kantor, mengubah nama instansi yang tampil di layar, 
+       serta mengatur link khusus (URL slug) untuk kantornya sendiri.
+*   Memantau Catatan Aktivitas 
+    -> Admin bisa melihat catatan keamanan: "Siapa melakukan apa dan kapan." 
+       Misalnya, melihat siapa yang menambahkan karyawan baru atau siapa yang mengubah 
+       pengaturan instansi. Ini penting untuk menjaga keamanan data.
+
+------------------------------------------------------------------------
+2. ROLE: PPID (Pejabat Pengelola Informasi & Pelaporan / "Bagian Humas")
+------------------------------------------------------------------------
+Analogi: PPID adalah petugas informasi yang fokus pada pengelolaan data. 
+Pekerjaan utamanya adalah menganalisis data kunjungan tamu dan mencetak laporan 
+bulanan untuk diserahkan kepada Pimpinan/Kepala Kantor.
+
+Fitur yang bisa dilakukan PPID:
+*   Dashboard Pelaporan (Analisis Kunjungan)
+    -> Layar ringkas yang menunjukkan tren kunjungan tamu. PPID bisa melihat 
+       apakah tamu yang datang lebih banyak urusan dinas, pribadi, atau lainnya.
+*   Melihat Ranking Karyawan (Pegawai Paling Sering Dicari)
+    -> PPID bisa melihat daftar pegawai/staf yang paling sering menerima kunjungan. 
+       Ini membantu pimpinan mengetahui staf mana yang memiliki beban interaksi 
+       paling tinggi dengan masyarakat luar.
+*   Meninjau Riwayat Kunjungan Lengkap
+    -> PPID bisa melihat riwayat seluruh tamu untuk mencocokkan data jika ada 
+       pengaduan atau kebutuhan verifikasi data di kemudian hari.
+*   Cetak & Ekspor Laporan Excel Sekali Klik (Laporan Tanpa Ribet)
+    -> Ini fitur andalan PPID. Cukup pilih rentang tanggal (misal: 1 s.d 30 Juni), 
+       lalu klik "Download/Ekspor". Sistem otomatis membuat file Excel (.xlsx) 
+       yang rapi, siap diprint atau dikirim ke pimpinan. Tidak perlu lagi mengetik 
+       ulang dari buku tamu kertas!
+
+------------------------------------------------------------------------
+3. ROLE: PETUGAS (Garda Depan / "Resepsionis & Satpam")
+------------------------------------------------------------------------
+Analogi: Petugas adalah orang pertama yang menyapa tamu. Mereka berjaga di 
+meja depan resepsionis atau pos penjagaan. Tugasnya adalah menyaring tamu yang 
+masuk agar lingkungan kantor tetap aman.
+
+Fitur yang bisa dilakukan Petugas:
+*   Dashboard Layar Depan (Pusat Kendali Cepat)
+    -> Menampilkan jumlah tamu yang sedang berkunjung saat ini dan memberikan 
+       notifikasi suara otomatis jika ada tamu baru yang mendaftar di depan pintu.
+*   Tampilkan QR Code (Pintu Masuk Digital)
+    -> Petugas bisa menampilkan kode QR instansi di layar komputer atau mencetaknya. 
+       Tamu yang datang cukup mengarahkan kamera HP ke kode QR ini untuk mulai 
+       mengisi buku tamu.
+*   Validasi & Persetujuan Tamu (Penyaring Keamanan)
+    -> Saat tamu mengisi formulir dan berselfie di HP mereka, data tersebut langsung 
+       masuk ke layar Petugas. Petugas tinggal melihat foto wajah tamu dan tujuannya, 
+       lalu klik tombol hijau "Setuju" atau tombol merah "Tolak". Sangat cepat!
+*   Mengelola Tamu Berkunjung (Proses Check-Out)
+    -> Petugas bisa melihat siapa saja tamu yang saat ini masih berada di dalam area 
+       kantor. Ketika tamu tersebut akan pulang, Petugas tinggal mengeklik tombol 
+       "Check-Out" untuk mencatat jam keluar mereka secara akurat.
+*   Isi Buku Tamu Manual (Bantuan Khusus)
+    -> Jika ada tamu lanjut usia, tidak membawa HP, atau baterai HP-nya habis, 
+       Petugas bisa membantu menginputkan data tamu tersebut secara manual melalui 
+       komputer petugas. Jadi, tidak ada tamu yang terhambat.
+*   Rekap Riwayat Hari Ini (Laporan Shift Kerja)
+    -> Petugas bisa melihat daftar tamu khusus yang dilayani pada hari itu saja, 
+       memudahkan mereka saat pergantian shift jaga.
+========================================================================

@@ -18,7 +18,9 @@ import {
   X,
   ChevronLeft,
   Save,
-  UserPlus
+  UserPlus,
+  ChevronDown,
+  Search,
 } from "lucide-react";
 
 interface Employee {
@@ -40,6 +42,182 @@ const colors = {
   secondaryDarkest: "#00043A",
 };
 
+// Searchable Select Component
+function SearchableSelect({
+  options,
+  value,
+  onChange,
+  placeholder,
+  label,
+}: {
+  options: Employee[];
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  label: React.ReactNode;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const selectedOption = options.find((opt) => opt.id.toString() === value);
+
+  const filteredOptions = options.filter(
+    (opt) =>
+      opt.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      opt.department.toLowerCase().includes(searchTerm.toLowerCase()),
+  );
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+        setSearchTerm("");
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isOpen]);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <label
+        className="block text-sm font-medium mb-1"
+        style={{ color: colors.secondaryDarkest }}
+      >
+        {label}
+      </label>
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-3 py-2 rounded-lg cursor-pointer flex items-center justify-between transition-all duration-200"
+        style={{
+          border: `1px solid ${colors.secondary}20`,
+          backgroundColor: colors.white,
+          minHeight: "42px",
+        }}
+      >
+        <span
+          style={{
+            color: selectedOption
+              ? colors.secondaryDarkest
+              : colors.secondaryDark,
+          }}
+        >
+          {selectedOption
+            ? `${selectedOption.name} - ${selectedOption.department}`
+            : placeholder}
+        </span>
+        <ChevronDown
+          size={16}
+          style={{
+            color: colors.secondaryDark,
+            transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+          }}
+          className="transition-transform duration-200"
+        />
+      </div>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="absolute z-50 w-full mt-1 rounded-lg shadow-lg overflow-hidden"
+            style={{
+              backgroundColor: colors.white,
+              border: `1px solid ${colors.secondary}20`,
+            }}
+          >
+            <div
+              className="p-2 border-b"
+              style={{ borderColor: `${colors.secondary}10` }}
+            >
+              <div className="relative">
+                <Search
+                  className="absolute left-3 top-1/2 -translate-y-1/2 size-4"
+                  style={{ color: colors.secondaryDark }}
+                />
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Cari karyawan..."
+                  className="w-full pl-9 pr-3 py-3 text-sm rounded-lg focus:outline-none focus:ring-2"
+                  style={{
+                    border: `1px solid ${colors.secondary}20`,
+                    backgroundColor: colors.white,
+                    color: colors.secondaryDarkest,
+                  }}
+                  onFocus={(e) =>
+                    (e.currentTarget.style.borderColor = colors.secondary)
+                  }
+                  onBlur={(e) =>
+                    (e.currentTarget.style.borderColor = `${colors.secondary}20`)
+                  }
+                />
+              </div>
+            </div>
+            <div className="max-h-48 overflow-y-auto">
+              {filteredOptions.length === 0 ? (
+                <div
+                  className="px-3 py-2 text-sm text-center"
+                  style={{ color: colors.secondaryDark }}
+                >
+                  Tidak ada karyawan
+                </div>
+              ) : (
+                filteredOptions.map((opt) => (
+                  <div
+                    key={opt.id}
+                    onClick={() => {
+                      onChange(opt.id.toString());
+                      setIsOpen(false);
+                      setSearchTerm("");
+                    }}
+                    className="px-3 py-2 cursor-pointer transition-colors duration-150 hover:bg-gray-50"
+                    style={{
+                      backgroundColor:
+                        value === opt.id.toString()
+                          ? `${colors.secondary}10`
+                          : "transparent",
+                      borderBottom: `1px solid ${colors.secondary}10`,
+                    }}
+                  >
+                    <div
+                      className="font-medium text-sm"
+                      style={{ color: colors.secondaryDarkest }}
+                    >
+                      {opt.name}
+                    </div>
+                    <div
+                      className="text-xs"
+                      style={{ color: colors.secondaryDark }}
+                    >
+                      {opt.department}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export default function InputManualPage() {
   const params = useParams();
   const router = useRouter();
@@ -47,7 +225,7 @@ export default function InputManualPage() {
 
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  
+
   // Form state
   const [formData, setFormData] = useState({
     name: "",
@@ -56,7 +234,7 @@ export default function InputManualPage() {
     purpose: "",
     employee_id: "",
   });
-  
+
   // Photo states
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
@@ -135,15 +313,15 @@ export default function InputManualPage() {
     let countdown = 3;
     setTimer(countdown);
     setShowTimerOverlay(true);
-    
+
     if (timerRef.current) {
       clearInterval(timerRef.current);
     }
-    
+
     timerRef.current = setInterval(() => {
       countdown -= 1;
       setTimer(countdown);
-      
+
       if (countdown <= 0) {
         if (timerRef.current) {
           clearInterval(timerRef.current);
@@ -154,7 +332,7 @@ export default function InputManualPage() {
       }
     }, 1000);
   };
-  
+
   // Do actual capture
   const doCapturePhoto = () => {
     if (videoRef.current && canvasRef.current) {
@@ -207,7 +385,7 @@ export default function InputManualPage() {
         body: formData,
       });
       const data = await res.json();
-      
+
       if (data.success) {
         setPhotoUrl(data.url);
         setShowPreviewModal(false);
@@ -227,7 +405,7 @@ export default function InputManualPage() {
   // Submit form
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.name || !formData.purpose) {
       showToast("error", "Nama tamu dan tujuan kunjungan wajib diisi");
       return;
@@ -245,7 +423,9 @@ export default function InputManualPage() {
         nik: formData.nik || null,
         institution: formData.institution || null,
         purpose: formData.purpose,
-        employee_id: formData.employee_id ? parseInt(formData.employee_id) : null,
+        employee_id: formData.employee_id
+          ? parseInt(formData.employee_id)
+          : null,
         photo_url: photoUrl,
       };
 
@@ -255,7 +435,7 @@ export default function InputManualPage() {
         body: JSON.stringify(payload),
       });
       const data = await res.json();
-      
+
       if (data.success) {
         showToast("success", "Tamu berhasil ditambahkan");
         setTimeout(() => {
@@ -295,11 +475,18 @@ export default function InputManualPage() {
             exit={{ opacity: 0, y: -50 }}
             className="fixed top-20 right-4 z-50 px-4 py-3 rounded-xl shadow-lg flex items-center gap-2"
             style={{
-              backgroundColor: toastMessage.type === "success" ? colors.secondary : colors.primaryLight,
+              backgroundColor:
+                toastMessage.type === "success"
+                  ? colors.secondary
+                  : colors.primaryLight,
               color: colors.white,
             }}
           >
-            {toastMessage.type === "success" ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
+            {toastMessage.type === "success" ? (
+              <CheckCircle size={18} />
+            ) : (
+              <AlertCircle size={18} />
+            )}
             <span>{toastMessage.message}</span>
           </motion.div>
         )}
@@ -323,9 +510,17 @@ export default function InputManualPage() {
               className="rounded-2xl shadow-xl max-w-md w-full mx-4 overflow-hidden"
               style={{ backgroundColor: colors.white }}
             >
-              <div className="p-5" style={{ borderBottom: `1px solid ${colors.secondary}20` }}>
+              <div
+                className="p-5"
+                style={{ borderBottom: `1px solid ${colors.secondary}20` }}
+              >
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-semibold" style={{ color: colors.secondaryDarkest }}>Ambil Foto Tamu</h3>
+                  <h3
+                    className="text-xl font-semibold"
+                    style={{ color: colors.secondaryDarkest }}
+                  >
+                    Ambil Foto Tamu
+                  </h3>
                   <button
                     onClick={() => setShowPhotoModal(false)}
                     className="p-1 rounded-lg transition"
@@ -334,31 +529,69 @@ export default function InputManualPage() {
                     <X size={20} />
                   </button>
                 </div>
-                <p className="text-sm mt-1" style={{ color: colors.secondaryDark }}>Pastikan wajah tamu terlihat jelas</p>
+                <p
+                  className="text-sm mt-1"
+                  style={{ color: colors.secondaryDark }}
+                >
+                  Pastikan wajah tamu terlihat jelas
+                </p>
               </div>
 
               <div className="p-5">
-                <div className="rounded-xl p-6 text-center" style={{ backgroundColor: `${colors.secondary}10`, border: `1px solid ${colors.secondary}20` }}>
-                  <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: `${colors.secondary}20` }}>
+                <div
+                  className="rounded-xl p-6 text-center"
+                  style={{
+                    backgroundColor: `${colors.secondary}10`,
+                    border: `1px solid ${colors.secondary}20`,
+                  }}
+                >
+                  <div
+                    className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
+                    style={{ backgroundColor: `${colors.secondary}20` }}
+                  >
                     <Camera size={36} style={{ color: colors.secondary }} />
                   </div>
-                  <p className="text-sm font-medium mb-2" style={{ color: colors.secondaryDarkest }}>Ambil Foto Baru</p>
-                  <p className="text-xs" style={{ color: colors.secondaryDark }}>Gunakan kamera untuk mengambil foto tamu</p>
+                  <p
+                    className="text-sm font-medium mb-2"
+                    style={{ color: colors.secondaryDarkest }}
+                  >
+                    Ambil Foto Baru
+                  </p>
+                  <p
+                    className="text-xs"
+                    style={{ color: colors.secondaryDark }}
+                  >
+                    Gunakan kamera untuk mengambil foto tamu
+                  </p>
                 </div>
 
                 <button
                   onClick={startCamera}
                   className="w-full mt-4 py-3 rounded-xl transition flex items-center justify-center gap-2 font-medium"
-                  style={{ backgroundColor: colors.secondary, color: colors.white }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.secondaryDark}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.secondary}
+                  style={{
+                    backgroundColor: colors.secondary,
+                    color: colors.white,
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.backgroundColor =
+                      colors.secondaryDark)
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.backgroundColor = colors.secondary)
+                  }
                 >
                   <Camera size={18} />
                   Buka Kamera
                 </button>
               </div>
 
-              <div className="p-4" style={{ borderTop: `1px solid ${colors.secondary}10`, backgroundColor: `${colors.secondary}05` }}>
+              <div
+                className="p-4"
+                style={{
+                  borderTop: `1px solid ${colors.secondary}10`,
+                  backgroundColor: `${colors.secondary}05`,
+                }}
+              >
                 <button
                   onClick={() => setShowPhotoModal(false)}
                   className="w-full py-2 transition font-medium"
@@ -404,16 +637,28 @@ export default function InputManualPage() {
                   className="w-full aspect-square object-cover"
                   style={{ transform: "scaleX(-1)" }}
                 />
-                <div className="absolute inset-0 border-2 rounded-2xl pointer-events-none" style={{ borderColor: `${colors.secondary}80` }}>
+                <div
+                  className="absolute inset-0 border-2 rounded-2xl pointer-events-none"
+                  style={{ borderColor: `${colors.secondary}80` }}
+                >
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-40 h-40 rounded-full border-2 flex items-center justify-center" style={{ borderColor: `${colors.secondary}60` }}>
-                      <div className="w-32 h-32 rounded-full border flex items-center justify-center" style={{ borderColor: `${colors.secondary}30` }}>
-                        <User size={48} style={{ color: `${colors.secondary}40` }} />
+                    <div
+                      className="w-40 h-40 rounded-full border-2 flex items-center justify-center"
+                      style={{ borderColor: `${colors.secondary}60` }}
+                    >
+                      <div
+                        className="w-32 h-32 rounded-full border flex items-center justify-center"
+                        style={{ borderColor: `${colors.secondary}30` }}
+                      >
+                        <User
+                          size={48}
+                          style={{ color: `${colors.secondary}40` }}
+                        />
                       </div>
                     </div>
                   </div>
                 </div>
-                
+
                 {showTimerOverlay && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/60">
                     <motion.div
@@ -424,15 +669,17 @@ export default function InputManualPage() {
                       className="w-32 h-32 rounded-full flex items-center justify-center"
                       style={{ backgroundColor: `${colors.secondary}E6` }}
                     >
-                      <span className="text-7xl font-bold text-white">{timer}</span>
+                      <span className="text-7xl font-bold text-white">
+                        {timer}
+                      </span>
                     </motion.div>
                   </div>
                 )}
-                
+
                 <div className="absolute bottom-4 left-0 right-0 text-center">
                   <p className="text-white/80 text-xs bg-black/50 inline-block px-3 py-1 rounded-full">
-                    {showTimerOverlay 
-                      ? `Foto akan diambil dalam ${timer} detik` 
+                    {showTimerOverlay
+                      ? `Foto akan diambil dalam ${timer} detik`
                       : "Tekan tombol kamera untuk mulai timer 3 detik"}
                   </p>
                 </div>
@@ -444,7 +691,10 @@ export default function InputManualPage() {
                   disabled={showTimerOverlay}
                   className="p-3 bg-white rounded-full shadow-lg hover:bg-gray-100 transition transform hover:scale-105 active:scale-95 disabled:opacity-50"
                 >
-                  <div className="w-16 h-16 rounded-full border-4" style={{ borderColor: colors.secondary }}></div>
+                  <div
+                    className="w-16 h-16 rounded-full border-4"
+                    style={{ borderColor: colors.secondary }}
+                  ></div>
                 </button>
               </div>
             </div>
@@ -469,9 +719,17 @@ export default function InputManualPage() {
               className="rounded-2xl shadow-xl max-w-md w-full mx-4 overflow-hidden"
               style={{ backgroundColor: colors.white }}
             >
-              <div className="p-5" style={{ borderBottom: `1px solid ${colors.secondary}20` }}>
+              <div
+                className="p-5"
+                style={{ borderBottom: `1px solid ${colors.secondary}20` }}
+              >
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-semibold" style={{ color: colors.secondaryDarkest }}>Preview Foto</h3>
+                  <h3
+                    className="text-xl font-semibold"
+                    style={{ color: colors.secondaryDarkest }}
+                  >
+                    Preview Foto
+                  </h3>
                   <button
                     onClick={cancelPreview}
                     className="p-1 rounded-lg transition"
@@ -480,11 +738,19 @@ export default function InputManualPage() {
                     <X size={20} />
                   </button>
                 </div>
-                <p className="text-sm mt-1" style={{ color: colors.secondaryDark }}>Apakah foto ini sudah sesuai?</p>
+                <p
+                  className="text-sm mt-1"
+                  style={{ color: colors.secondaryDark }}
+                >
+                  Apakah foto ini sudah sesuai?
+                </p>
               </div>
 
               <div className="p-5">
-                <div className="relative rounded-xl overflow-hidden mb-4" style={{ backgroundColor: `${colors.secondary}10` }}>
+                <div
+                  className="relative rounded-xl overflow-hidden mb-4"
+                  style={{ backgroundColor: `${colors.secondary}10` }}
+                >
                   <img
                     src={capturedPhoto}
                     alt="Preview"
@@ -498,8 +764,12 @@ export default function InputManualPage() {
                     disabled={uploadingPhoto}
                     className="py-2.5 rounded-xl transition flex items-center justify-center gap-2 font-medium disabled:opacity-50"
                     style={{ backgroundColor: "#EAB308", color: colors.white }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#CA8A04"}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#EAB308"}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.backgroundColor = "#CA8A04")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.backgroundColor = "#EAB308")
+                    }
                   >
                     <RefreshCw size={18} />
                     Foto Ulang
@@ -508,9 +778,17 @@ export default function InputManualPage() {
                     onClick={saveCapturedPhoto}
                     disabled={uploadingPhoto}
                     className="py-2.5 rounded-xl transition flex items-center justify-center gap-2 font-medium disabled:opacity-50"
-                    style={{ backgroundColor: colors.secondary, color: colors.white }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.secondaryDark}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.secondary}
+                    style={{
+                      backgroundColor: colors.secondary,
+                      color: colors.white,
+                    }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.backgroundColor =
+                        colors.secondaryDark)
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.backgroundColor = colors.secondary)
+                    }
                   >
                     {uploadingPhoto ? (
                       <>
@@ -547,24 +825,52 @@ export default function InputManualPage() {
               Kembali ke Dashboard
             </Link>
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl" style={{ backgroundColor: `${colors.secondary}15` }}>
-                <UserPlus className="size-6" style={{ color: colors.secondary }} />
+              <div
+                className="p-2 rounded-xl"
+                style={{ backgroundColor: `${colors.secondary}15` }}
+              >
+                <UserPlus
+                  className="size-6"
+                  style={{ color: colors.secondary }}
+                />
               </div>
               <div>
-                <h1 className="text-2xl font-bold" style={{ color: colors.secondaryDarkest }}>Input Manual Tamu</h1>
-                <p className="text-sm mt-0.5" style={{ color: colors.secondaryDark }}>Tambah kunjungan tamu secara manual</p>
+                <h1
+                  className="text-2xl font-bold"
+                  style={{ color: colors.secondaryDarkest }}
+                >
+                  Input Manual Tamu
+                </h1>
+                <p
+                  className="text-sm mt-0.5"
+                  style={{ color: colors.secondaryDark }}
+                >
+                  Tambah kunjungan tamu secara manual
+                </p>
               </div>
             </div>
           </div>
         </div>
 
         {/* Form */}
-        <div className="rounded-2xl shadow-sm overflow-hidden" style={{ backgroundColor: colors.white, border: `1px solid ${colors.secondary}20` }}>
+        <div
+          className="rounded-2xl shadow-sm"
+          style={{
+            backgroundColor: colors.white,
+            border: `1px solid ${colors.secondary}20`,
+          }}
+        >
           <form onSubmit={handleSubmit} className="p-6 space-y-5">
             {/* Photo Section */}
             <div className="flex items-center gap-4">
               <div className="relative">
-                <div className="w-20 h-20 rounded-xl overflow-hidden flex items-center justify-center" style={{ backgroundColor: `${colors.secondary}10`, border: `2px dashed ${colors.secondary}30` }}>
+                <div
+                  className="w-20 h-20 rounded-xl overflow-hidden flex items-center justify-center"
+                  style={{
+                    backgroundColor: `${colors.secondary}10`,
+                    border: `2px dashed ${colors.secondary}30`,
+                  }}
+                >
                   {photoUrl ? (
                     <Image
                       src={photoUrl}
@@ -581,32 +887,58 @@ export default function InputManualPage() {
                   type="button"
                   onClick={() => setShowPhotoModal(true)}
                   className="absolute -bottom-2 -right-2 p-1.5 rounded-full transition shadow-md"
-                  style={{ backgroundColor: colors.secondary, color: colors.white }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.secondaryDark}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.secondary}
+                  style={{
+                    backgroundColor: colors.secondary,
+                    color: colors.white,
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.backgroundColor =
+                      colors.secondaryDark)
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.backgroundColor = colors.secondary)
+                  }
                 >
                   <Camera size={14} />
                 </button>
               </div>
               <div>
-                <p className="text-sm font-medium" style={{ color: colors.secondaryDarkest }}>Foto Tamu</p>
-                <p className="text-xs" style={{ color: colors.secondaryDark }}>Klik ikon kamera untuk mengambil foto</p>
-                <p className="text-xs" style={{ color: colors.secondaryDark }}>Foto wajib diambil langsung dari kamera</p>
+                <p
+                  className="text-sm font-medium"
+                  style={{ color: colors.secondaryDarkest }}
+                >
+                  Foto Tamu
+                </p>
+                <p className="text-xs" style={{ color: colors.secondaryDark }}>
+                  Klik ikon kamera untuk mengambil foto
+                </p>
+                <p className="text-xs" style={{ color: colors.secondaryDark }}>
+                  Foto wajib diambil langsung dari kamera
+                </p>
               </div>
             </div>
 
             {/* Form Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: colors.secondaryDarkest }}>
-                  Nama Tamu <span style={{ color: colors.primaryLight }}>*</span>
+                <label
+                  className="block text-sm font-medium mb-1"
+                  style={{ color: colors.secondaryDarkest }}
+                >
+                  Nama Tamu{" "}
+                  <span style={{ color: colors.primaryLight }}>*</span>
                 </label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 size-4" style={{ color: colors.secondaryDark }} />
+                  <User
+                    className="absolute left-3 top-1/2 -translate-y-1/2 size-4"
+                    style={{ color: colors.secondaryDark }}
+                  />
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
                     required
                     placeholder="Masukkan nama lengkap"
                     className="w-full pl-9 pr-3 py-2 rounded-lg focus:outline-none focus:ring-2"
@@ -615,38 +947,67 @@ export default function InputManualPage() {
                       color: colors.secondaryDarkest,
                       backgroundColor: colors.white,
                     }}
-                    onFocus={(e) => e.currentTarget.style.borderColor = colors.secondary}
-                    onBlur={(e) => e.currentTarget.style.borderColor = `${colors.secondary}20`}
+                    onFocus={(e) =>
+                      (e.currentTarget.style.borderColor = colors.secondary)
+                    }
+                    onBlur={(e) =>
+                      (e.currentTarget.style.borderColor = `${colors.secondary}20`)
+                    }
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: colors.secondaryDarkest }}>NIK</label>
+                <label
+                  className="block text-sm font-medium mb-1"
+                  style={{ color: colors.secondaryDarkest }}
+                >
+                  NIK
+                </label>
                 <input
                   type="text"
                   value={formData.nik}
-                  onChange={(e) => setFormData({ ...formData, nik: e.target.value })}
-                  placeholder="Nomor Induk Kependudukan (opsional)"
+                  onChange={(e) => {
+                    const numericValue = e.target.value
+                      .replace(/\D/g, "")
+                      .slice(0, 16);
+                    setFormData({ ...formData, nik: numericValue });
+                  }}
+                  required
+                  placeholder="Nomor Induk Kependudukan (16 digit angka)"
                   className="w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2"
                   style={{
                     border: `1px solid ${colors.secondary}20`,
                     color: colors.secondaryDarkest,
                     backgroundColor: colors.white,
                   }}
-                  onFocus={(e) => e.currentTarget.style.borderColor = colors.secondary}
-                  onBlur={(e) => e.currentTarget.style.borderColor = `${colors.secondary}20`}
+                  onFocus={(e) =>
+                    (e.currentTarget.style.borderColor = colors.secondary)
+                  }
+                  onBlur={(e) =>
+                    (e.currentTarget.style.borderColor = `${colors.secondary}20`)
+                  }
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: colors.secondaryDarkest }}>Asal Instansi</label>
+                <label
+                  className="block text-sm font-medium mb-1"
+                  style={{ color: colors.secondaryDarkest }}
+                >
+                  Asal Instansi
+                </label>
                 <div className="relative">
-                  <Building className="absolute left-3 top-1/2 -translate-y-1/2 size-4" style={{ color: colors.secondaryDark }} />
+                  <Building
+                    className="absolute left-3 top-1/2 -translate-y-1/2 size-4"
+                    style={{ color: colors.secondaryDark }}
+                  />
                   <input
                     type="text"
                     value={formData.institution}
-                    onChange={(e) => setFormData({ ...formData, institution: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, institution: e.target.value })
+                    }
                     placeholder="Nama instansi/perusahaan (opsional)"
                     className="w-full pl-9 pr-3 py-2 rounded-lg focus:outline-none focus:ring-2"
                     style={{
@@ -654,22 +1015,35 @@ export default function InputManualPage() {
                       color: colors.secondaryDarkest,
                       backgroundColor: colors.white,
                     }}
-                    onFocus={(e) => e.currentTarget.style.borderColor = colors.secondary}
-                    onBlur={(e) => e.currentTarget.style.borderColor = `${colors.secondary}20`}
+                    onFocus={(e) =>
+                      (e.currentTarget.style.borderColor = colors.secondary)
+                    }
+                    onBlur={(e) =>
+                      (e.currentTarget.style.borderColor = `${colors.secondary}20`)
+                    }
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: colors.secondaryDarkest }}>
-                  Tujuan Kunjungan <span style={{ color: colors.primaryLight }}>*</span>
+                <label
+                  className="block text-sm font-medium mb-1"
+                  style={{ color: colors.secondaryDarkest }}
+                >
+                  Tujuan Kunjungan{" "}
+                  <span style={{ color: colors.primaryLight }}>*</span>
                 </label>
                 <div className="relative">
-                  <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 size-4" style={{ color: colors.secondaryDark }} />
+                  <Briefcase
+                    className="absolute left-3 top-1/2 -translate-y-1/2 size-4"
+                    style={{ color: colors.secondaryDark }}
+                  />
                   <input
                     type="text"
                     value={formData.purpose}
-                    onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, purpose: e.target.value })
+                    }
                     required
                     placeholder="Tujuan kunjungan"
                     className="w-full pl-9 pr-3 py-2 rounded-lg focus:outline-none focus:ring-2"
@@ -678,44 +1052,51 @@ export default function InputManualPage() {
                       color: colors.secondaryDarkest,
                       backgroundColor: colors.white,
                     }}
-                    onFocus={(e) => e.currentTarget.style.borderColor = colors.secondary}
-                    onBlur={(e) => e.currentTarget.style.borderColor = `${colors.secondary}20`}
+                    onFocus={(e) =>
+                      (e.currentTarget.style.borderColor = colors.secondary)
+                    }
+                    onBlur={(e) =>
+                      (e.currentTarget.style.borderColor = `${colors.secondary}20`)
+                    }
                   />
                 </div>
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium mb-1" style={{ color: colors.secondaryDarkest }}>Karyawan Tujuan</label>
-                <div className="relative">
-                  <Users className="absolute left-3 top-1/2 -translate-y-1/2 size-4" style={{ color: colors.secondaryDark }} />
-                  <select
-                    value={formData.employee_id}
-                    onChange={(e) => setFormData({ ...formData, employee_id: e.target.value })}
-                    className="w-full pl-9 pr-3 py-2 rounded-lg focus:outline-none focus:ring-2 appearance-none"
-                    style={{
-                      border: `1px solid ${colors.secondary}20`,
-                      color: colors.secondaryDarkest,
-                      backgroundColor: colors.white,
-                    }}
-                    onFocus={(e) => e.currentTarget.style.borderColor = colors.secondary}
-                    onBlur={(e) => e.currentTarget.style.borderColor = `${colors.secondary}20`}
-                  >
-                    <option value="">Pilih karyawan yang dituju (opsional)</option>
-                    {employees.map((emp) => (
-                      <option key={emp.id} value={emp.id}>
-                        {emp.name} - {emp.department}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <SearchableSelect
+                  options={employees}
+                  value={formData.employee_id}
+                  onChange={(val) =>
+                    setFormData({ ...formData, employee_id: val })
+                  }
+                  placeholder="Pilih karyawan yang dituju (opsional)"
+                  label="Karyawan Tujuan"
+                />
               </div>
             </div>
 
             {/* Info Note */}
-            <div className="p-3 rounded-lg" style={{ backgroundColor: `${colors.secondary}10`, border: `1px solid ${colors.secondary}20` }}>
-              <p className="text-xs flex items-start gap-2" style={{ color: colors.secondaryDark }}>
-                <AlertCircle size={14} className="mt-0.5 flex-shrink-0" style={{ color: colors.secondary }} />
-                Tamu yang diinput manual akan langsung status <strong style={{ color: colors.secondaryDarkest }}>Sedang Berkunjung</strong> tanpa perlu validasi.
+            <div
+              className="p-3 rounded-lg"
+              style={{
+                backgroundColor: `${colors.secondary}10`,
+                border: `1px solid ${colors.secondary}20`,
+              }}
+            >
+              <p
+                className="text-xs flex items-start gap-2"
+                style={{ color: colors.secondaryDark }}
+              >
+                <AlertCircle
+                  size={14}
+                  className="mt-0.5 flex-shrink-0"
+                  style={{ color: colors.secondary }}
+                />
+                Tamu yang diinput manual akan langsung status{" "}
+                <strong style={{ color: colors.secondaryDarkest }}>
+                  Sedang Berkunjung
+                </strong>{" "}
+                tanpa perlu validasi.
               </p>
             </div>
 
@@ -724,7 +1105,10 @@ export default function InputManualPage() {
               <Link
                 href={`/${slug}/petugas`}
                 className="px-4 py-2 rounded-lg transition"
-                style={{ border: `1px solid ${colors.secondary}20`, color: colors.secondaryDark }}
+                style={{
+                  border: `1px solid ${colors.secondary}20`,
+                  color: colors.secondaryDark,
+                }}
               >
                 Batal
               </Link>
@@ -732,9 +1116,16 @@ export default function InputManualPage() {
                 type="submit"
                 disabled={submitting}
                 className="px-4 py-2 rounded-lg transition disabled:opacity-50 flex items-center gap-2"
-                style={{ backgroundColor: colors.secondary, color: colors.white }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.secondaryDark}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = colors.secondary}
+                style={{
+                  backgroundColor: colors.secondary,
+                  color: colors.white,
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.backgroundColor = colors.secondaryDark)
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.backgroundColor = colors.secondary)
+                }
               >
                 {submitting ? (
                   <>

@@ -1,22 +1,25 @@
-NASKAH PRESENTASI VISITRACK
-==========================
+Halo Bapak/Ibu semuanya, selamat [pagi/siang/sore]. Kami dari tim [Nama Tim] ingin memperkenalkan solusi inovatif kami yang bernama VisiTrack.
 
-(Bisa Anda sesuaikan gayanya dengan karakter bicara Anda)
+[Slide 1: Masalah Saat Ini]
+Mari kita mulai dari permasalahan yang sering terjadi di bagian resepsionis kantor. 
+Hingga saat ini, banyak instansi yang masih mengandalkan buku tamu tulis biasa. Cara ini menimbulkan beberapa kendala dalam operasional sehari-hari. Pertama, kalau kita butuh mencari data tamu di hari tertentu bulan lalu, kita harus membolak-balik halaman yang memakan waktu. Kedua, siapa saja bisa menulis nama asal-asalan karena tidak ada bukti wajah. Ketiga, ketika tiba saatnya menyusun laporan atau rekap bulanan untuk pimpinan, petugas harus menghitung dan memindahkannya satu per satu. Ini sangat tidak efisien.
 
-1. PEMBUKAAN & PERKENALAN
-"Assalamualaikum Warahmatullahi Wabarakatuh, selamat siang Bapak/Ibu manajemen yang saya hormati. Terima kasih atas kesempatan yang diberikan kepada saya hari ini. Nama saya [Nama Anda], dan hari ini saya ingin mempresentasikan hasil pengembangan project saya yang berjudul VisiTrack. VisiTrack adalah sebuah Sistem Manajemen Buku Tamu Digital Modern yang dirancang khusus untuk membawa proses administrasi kunjungan di sekolah kita ke level yang lebih profesional, aman, dan terorganisir."
+[Slide 2: Solusinya, VisiTrack]
+Untuk menjawab masalah tersebut, kami menghadirkan "VisiTrack", sebuah Buku Tamu Digital yang modern dan sangat mudah digunakan. 
+Dengan menggunakan VisiTrack, instansi Bapak/Ibu akan memiliki buku tamunya sendiri dalam bentuk digital. Kantor Anda akan mendapatkan tautan atau website khusus, sehingga semua data tamu Anda 100% aman dan bersifat privat, tidak akan campur aduk dengan instansi lain. Semuanya dicatat dan direkap oleh sistem secara otomatis. Menggunakan VisiTrack juga akan langsung meningkatkan citra kantor Bapak/Ibu di mata tamu, karena terlihat jauh lebih profesional, cepat, dan canggih.
 
-2. MASALAH (TRANSISI DARI MANUAL)
-"Selama ini, kita masih menggunakan buku tamu konvensional berbasis kertas. Namun, seiring dengan tuntutan digitalisasi, sistem manual ini mulai menunjukkan keterbatasan. Seringkali kita menemukan tulisan tamu yang sulit dibaca, data yang tercecer, hingga sulitnya tim administrasi saat harus membuat rekapitulasi bulanan secara manual. Selain itu, dari sisi keamanan, buku tamu manual tidak memiliki bukti identitas yang kuat. Inilah alasan utama mengapa transisi ke sistem digital VisiTrack menjadi sangat krusial bagi instansi kita."
+[Slide 3: Fitur Utama & Pembagian Peran]
+VisiTrack memiliki 4 keunggulan utama yang disesuaikan untuk kebutuhan kantor:
+Pertama (01), Verifikasi Keamanan Lengkap. Tamu tidak hanya menulis nama, tapi wajib melakukan foto selfie langsung dari HP mereka untuk bukti identitas yang sah.
+Kedua (02), Akses Tanpa Instalasi. Tamu tidak akan direpotkan dengan menginstal aplikasi. Mereka cukup membuka kamera HP dan menggunakan browser bawaan.
+Ketiga (03), Pemberitahuan Seketika. Begitu tamu selesai mengisi form di depan, layar petugas resepsionis akan langsung berbunyi dan menampilkan data tersebut detik itu juga.
+Keempat (04), Pembagian Peran yang Rapi. Sistem kami membagi tugas dengan jelas: ada akun untuk pengelola (Admin) yang mengatur data, ada akun khusus pelaporan untuk pimpinan, dan ada akun khusus untuk resepsionis yang berjaga. Pekerjaan menjadi sangat terorganisir.
 
-3. SOLUSI & KEUNGGULAN UTAMA
-"VisiTrack hadir sebagai solusi all-in-one. Dengan sistem ini, tamu tidak perlu lagi mengantre untuk menulis di buku besar; mereka cukup melakukan scan QR Code, mengisi data diri, dan mengambil foto selfie sebagai validasi kehadiran di lokasi. Bagi manajemen, keunggulan utamanya adalah transparansi. Bapak dan Ibu bisa memantau dashboard secara real-time untuk melihat siapa saja tamu yang sedang aktif di lingkungan sekolah saat ini. Selain itu, semua data tersimpan secara terpusat dan dapat diekspor ke format Excel hanya dengan satu klik."
+[Slide 4: Cara Kerja yang Sangat Mudah (Untuk Tamu)]
+Lalu, bagaimana pengalaman tamu saat menggunakan VisiTrack? Sangat praktis!
+1. Scan QR Code: Tamu yang baru tiba tidak perlu mengantre lama untuk meminjam pulpen. Cukup keluarkan HP, buka kamera, dan pindai kode QR yang diletakkan di meja resepsionis.
+2. Isi Formulir & Selfie: Di HP tamu, otomatis terbuka formulir untuk mengisi nama, dari mana asalnya, dan ingin bertemu siapa. Lalu tamu wajib mengambil foto wajah.
+3. Tunggu Izin: Begitu dikirim, tamu hanya perlu menunggu beberapa detik. Resepsionis akan melihat data tersebut di layarnya dan tinggal klik tombol "Setuju" atau "Tolak". 
+4. Selesai: Setelah tamu selesai berkunjung dan keluar gedung, petugas atau sistem akan menandai bahwa tamu tersebut sudah menyelesaikan kunjungannya (Check-Out).
 
-4. PERENCANAAN PENGEMBANGAN & KONTROL (TEKNIS)
-"Dalam proses pengembangannya, saya menggunakan teknologi Next.js dan MySQL yang merupakan standar industri saat ini untuk menjamin kecepatan dan skalabilitas sistem. Saya juga menerapkan sistem kontrol yang ketat melalui Role-Based Access Control. Artinya, setiap pengguna memiliki batasan akses yang jelas; petugas keamanan hanya bisa memvalidasi tamu, sedangkan manajemen memiliki hak akses ke laporan dan statistik. Hal ini memastikan bahwa data sensitif sekolah tetap terlindungi dan hanya bisa diakses oleh pihak yang berwenang."
-
-5. PROSEDUR UJICOBA (TESTING)
-"Untuk memastikan keandalan sistem ini, saya telah melakukan serangkaian ujicoba sesuai prosedur pengembangan perangkat lunak. Saya menguji setiap alur, mulai dari pendaftaran tamu, pengiriman data secara real-time ke dashboard petugas, hingga proses check-out otomatis. Hasil testing menunjukkan bahwa sistem mampu menangani input data dengan akurat, mencegah duplikasi, dan memberikan notifikasi instan kepada petugas saat ada tamu baru yang mendaftar. Hal ini membuktikan bahwa VisiTrack sudah siap digunakan dalam operasional sehari-hari."
-
-6. VISI MASA DEPAN & PENUTUP
-"Ke depannya, VisiTrack masih bisa dikembangkan lebih jauh, misalnya dengan integrasi notifikasi otomatis ke WhatsApp guru atau staf yang akan dikunjungi. Sebagai penutup, saya percaya bahwa implementasi VisiTrack akan menjadi langkah besar bagi sekolah kita dalam menunjukkan profesionalisme di mata tamu kedinasan maupun masyarakat luas. Demikian presentasi dari saya, mohon maaf jika ada kekurangan. Terima kasih atas perhatiannya, Wassalamualaikum Warahmatullahi Wabarakatuh."
+Semuanya tercatat otomatis, cepat, dan aman. Sekian pengenalan mengenai VisiTrack. Kami siap membantu instansi Bapak/Ibu menjadi lebih modern. Terima kasih atas waktunya, silakan jika ada hal yang ingin ditanyakan.

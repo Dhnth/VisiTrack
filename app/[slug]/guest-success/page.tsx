@@ -40,22 +40,6 @@ export default function GuestSuccessPage() {
 
       <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
         <div className="max-w-md w-full">
-          {/* Logo */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5 }}
-            className="flex justify-center mb-8"
-          >
-            <div className="p-3 rounded-2xl bg-white shadow-lg">
-              <Image
-                src="/images/icon.svg"
-                alt="VisiTrack"
-                width={50}
-                height={50}
-              />
-            </div>
-          </motion.div>
 
           {/* Success Card */}
           <motion.div
